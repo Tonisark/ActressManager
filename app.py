@@ -248,50 +248,74 @@ def get_thumbnail_path(folder_name: str):
             return os.path.join(folder, candidate)
     return None
 
+
 def build_filter_sql(q, status_filter, ethnicity_filter, occupation_filter, tag_filter, sort_by, age_min=None, age_max=None, height_min=None, height_max=None, page=1, per_page=20):
     where_clauses = []
     params = []
-    base_sql = 'SELECT * FROM actresses'
+    
+    # Base SQL: Alias the main table 'actresses' as 'a' in all cases
+    base_sql = 'SELECT a.* FROM actresses a'
+    
+    # Full-Text Search (FTS) logic
     if q:
+        # Join to FTS table, aliased as 'f', only when searching
         base_sql = 'SELECT a.* FROM actresses a JOIN actresses_fts f ON a.id = f.rowid'
-        where_clauses.append('f MATCH ?')
+        
+        # Use the FTS table alias 'f' and the FTS column 'actresses_fts' (or 'f' if the content column is implicitly named) for the MATCH clause
+        where_clauses.append('f.actresses_fts MATCH ?') 
         params.append(q + '*')  # Simple prefix search
+        
+    # Standard filtering clauses, now all prefixed with 'a.'
     if status_filter:
-        where_clauses.append('status = ?')
+        where_clauses.append('a.status = ?')
         params.append(status_filter)
+        
     if ethnicity_filter:
-        where_clauses.append('ethnicity = ?')
+        where_clauses.append('a.ethnicity = ?')
         params.append(ethnicity_filter)
+        
     if occupation_filter:
-        where_clauses.append('occupation_category = ?')
+        where_clauses.append('a.occupation_category = ?')
         params.append(occupation_filter)
+        
     if tag_filter:
-        where_clauses.append('tags LIKE ?')
+        where_clauses.append('a.tags LIKE ?')
         params.append(f'%{tag_filter}%')
+        
     if age_min is not None:
-        where_clauses.append('age IS NOT NULL AND age >= ?')
+        where_clauses.append('a.age IS NOT NULL AND a.age >= ?')
         params.append(age_min)
+        
     if age_max is not None:
-        where_clauses.append('age IS NOT NULL AND age <= ?')
+        where_clauses.append('a.age IS NOT NULL AND a.age <= ?')
         params.append(age_max)
+        
     # Height parsing (simple assume inches, rough)
     if height_min is not None:
-        where_clauses.append('height IS NOT NULL AND CAST(REPLACE(REPLACE(height, "\'", ""), "\"", "") AS INTEGER) >= ?')
+        where_clauses.append('a.height IS NOT NULL AND CAST(REPLACE(REPLACE(a.height, "\'", ""), "\"", "") AS INTEGER) >= ?')
         params.append(height_min)
+        
     if height_max is not None:
-        where_clauses.append('height IS NOT NULL AND CAST(REPLACE(REPLACE(height, "\'", ""), "\"", "") AS INTEGER) <= ?')
+        where_clauses.append('a.height IS NOT NULL AND CAST(REPLACE(REPLACE(a.height, "\'", ""), "\"", "") AS INTEGER) <= ?')
         params.append(height_max)
+        
     if where_clauses:
         sql = base_sql + ' WHERE ' + ' AND '.join(where_clauses)
     else:
         sql = base_sql
+        
+    # Ordering
     if sort_by not in ('name','age','country'):
         sort_by = 'name'
-    sql += f' ORDER BY {sort_by} COLLATE NOCASE'
+        
+    # The ORDER BY column must also be prefixed with 'a.' to prevent ambiguity if a search is running
+    sql += f' ORDER BY a.{sort_by} COLLATE NOCASE'
+    
     # Pagination (Feature 3)
     offset = (page - 1) * per_page
     sql += f' LIMIT ? OFFSET ?'
     params.extend([per_page, offset])
+    
     return sql, params
 
 # Tag cloud (Feature 1)
@@ -661,30 +685,79 @@ def gallery(actress_id):
 
 @app.route('/dashboard')
 def dashboard():
-    conn = get_conn(); cur = conn.cursor()
-    # Age dist
-    cur.execute('SELECT age, COUNT(*) as count FROM actresses WHERE age IS NOT NULL GROUP BY age ORDER BY age')
-    age_data = [{'age': r['age'], 'count': r['count']} for r in cur.fetchall()]
-    # Ethnicity pie
-    cur.execute('SELECT ethnicity, COUNT(*) as count FROM actresses WHERE ethnicity IS NOT NULL GROUP BY ethnicity')
-    eth_data = [{'ethnicity': r['ethnicity'], 'count': r['count']} for r in cur.fetchall()]
-    # Occupation dist
-    cur.execute('SELECT occupation_category, COUNT(*) as count FROM actresses WHERE occupation_category IS NOT NULL GROUP BY occupation_category')
-    occ_data = [{'category': r['occupation_category'], 'count': r['count']} for r in cur.fetchall()]
-    # Status dist
-    cur.execute('SELECT status, COUNT(*) as count FROM actresses WHERE status IS NOT NULL GROUP BY status')
-    status_data = [{'status': r['status'], 'count': r['count']} for r in cur.fetchall()]
-    conn.close()
-    
-    # Format current date
+    conn = get_conn()
+    cur = conn.cursor()
+
+    # Get all real column names from the actresses table
+    cur.execute("PRAGMA table_info(actresses)")
+    columns = [row['name'] for row in cur.fetchall()]
+
+    # Default values
+    age_data = []
+    eth_data = []
+    occ_data = []
+    status_data = []
+    total_actresses = 0
+    with_media_count = 0
+
+    try:
+        # Total number of actresses (always works)
+        cur.execute("SELECT COUNT(*) FROM actresses")
+        total_actresses = cur.fetchone()[0]
+
+        # Age distribution – only if column exists
+        if 'age' in columns:
+            cur.execute('SELECT age, COUNT(*) FROM actresses WHERE age IS NOT NULL GROUP BY age ORDER BY age')
+            age_data = [{'age': row[0], 'count': row[1]} for row in cur.fetchall()]
+
+        # Ethnicity
+        if 'ethnicity' in columns:
+            cur.execute('SELECT ethnicity, COUNT(*) FROM actresses WHERE ethnicity IS NOT NULL AND ethnicity != "" GROUP BY ethnicity')
+            eth_data = [{'ethnicity': row[0], 'count': row[1]} for row in cur.fetchall()]
+
+        # Occupation category
+        if 'occupation_category' in columns:
+            cur.execute('SELECT occupation_category, COUNT(*) FROM actresses WHERE occupation_category IS NOT NULL AND occupation_category != "" GROUP BY occupation_category')
+            occ_data = [{'category': row[0], 'count': row[1]} for row in cur.fetchall()]
+
+        # Status
+        if 'status' in columns:
+            cur.execute('SELECT status, COUNT(*) FROM actresses WHERE status IS NOT NULL GROUP BY status')
+            status_data = [{'status': row[0] or 'Unknown', 'count': row[1]} for row in cur.fetchall()]
+
+        # Media count – only check columns that actually exist
+        media_conditions = []
+        if 'thumbnail' in columns:
+            media_conditions.append("thumbnail IS NOT NULL AND thumbnail != ''")
+        if 'video_path' in columns:
+            media_conditions.append("video_path IS NOT NULL AND video_path != ''")
+        if 'video_url' in columns:
+            media_conditions.append("video_url IS NOT NULL AND video_url != ''")
+
+        if media_conditions:
+            query = f"SELECT COUNT(*) FROM actresses WHERE {' OR '.join(media_conditions)}"
+            cur.execute(query)
+            with_media_count = cur.fetchone()[0]
+        else:
+            with_media_count = 0  # No media columns yet
+
+    except Exception as e:
+        print("Warning: Dashboard query failed (non-fatal):", e)
+
+    finally:
+        conn.close()
+
     current_date = datetime.now().strftime('%B %d, %Y')
-    
-    return render_template('dashboard.html', 
-        age_data=json.dumps(age_data), 
-        eth_data=json.dumps(eth_data),
-        occ_data=json.dumps(occ_data),
-        status_data=json.dumps(status_data),
-        current_date=current_date)  # Add this line
+
+    return render_template('dashboard.html',
+        age_data=age_data,
+        eth_data=eth_data,
+        occ_data=occ_data,
+        status_data=status_data,
+        total=total_actresses,
+        with_media=with_media_count,
+        current_date=current_date
+    )
 
 # Social Media Sync
 @app.route('/sync/<int:actress_id>')
@@ -865,107 +938,138 @@ def import_csv():
     if request.method == 'POST':
         mode = request.form.get('mode','skip')
         f = request.files.get('csvfile')
+        
+        # 1. Handle No File Uploaded (Return JSON)
         if not f:
-            flash('No file uploaded', 'error'); return redirect(url_for('import_csv'))
+            # flash('No file uploaded', 'error') # Removed flash/redirect for AJAX response
+            return jsonify({'success': False, 'message': 'No file uploaded'}), 400
+
         try:
-            stream = io.StringIO(f.stream.read().decode('utf-8'))
+            # Check if file is empty
+            file_data = f.stream.read()
+            if not file_data:
+                return jsonify({'success': False, 'message': 'Uploaded file is empty.'}), 400
+
+            stream = io.StringIO(file_data.decode('utf-8'))
             reader = csv.DictReader(stream)
         except Exception as e:
-            flash(f'Failed to read CSV: {e}', 'error'); return redirect(url_for('import_csv'))
+            # 2. Handle Read Error (Return JSON)
+            return jsonify({'success': False, 'message': f'Failed to read CSV: {e}'}), 400
 
         # build header map
         fieldnames = reader.fieldnames or []
         header_map, lower_names = build_header_map(fieldnames)
+        
         # require name
         if 'name' not in header_map:
-            # try if some column literally called 'name'
             if 'name' in lower_names:
                 header_map['name'] = lower_names.index('name')
             else:
-                flash('CSV must include a Name column (header like: Name, name, Model Name etc.)', 'error')
-                return redirect(url_for('import_csv'))
+                # 3. Handle Missing Name Column (Return JSON)
+                return jsonify({'success': False, 'message': 'CSV must include a Name column (header like: Name, name, Model Name etc.)'}), 400
 
         upserted = 0; skipped = 0
         conn = get_conn(); cur = conn.cursor()
 
-        for row in reader:
-            # case-insensitive column access via row with lowered keys:
-            row_lower = {k.strip().lower(): (v or '').strip() for k,v in (row.items())}
-            name_val = None
-            # find name by synonyms
-            for syn in HEADER_SYNONYMS['name']:
-                if syn in row_lower and row_lower[syn]:
-                    name_val = row_lower[syn]; break
-            if not name_val:
-                # fallback: first non-empty column
-                for v in row.values():
-                    if v and v.strip():
-                        name_val = v.strip(); break
-            if not name_val:
-                skipped += 1; continue
+        try:
+            for row in reader:
+                # case-insensitive column access via row with lowered keys:
+                row_lower = {k.strip().lower(): (v or '').strip() for k,v in (row.items())}
+                name_val = None
+                # find name by synonyms
+                for syn in HEADER_SYNONYMS['name']:
+                    if syn in row_lower and row_lower[syn]:
+                        name_val = row_lower[syn]; break
+                if not name_val:
+                    # fallback: first non-empty column
+                    for v in row.values():
+                        if v and v.strip():
+                            name_val = v.strip(); break
+                if not name_val:
+                    skipped += 1; continue
 
-            # map fields opportunistically
-            def value_for(cands):
-                for c in cands:
-                    if c in row_lower and row_lower[c]:
-                        return row_lower[c]
-                return ''
+                # map fields opportunistically
+                def value_for(cands):
+                    for c in cands:
+                        if c in row_lower and row_lower[c]:
+                            return row_lower[c]
+                    return ''
 
-            data = {
-                'name': name_val,
-                'aka': value_for(HEADER_SYNONYMS.get('aka', [])),
-                'profession': value_for(HEADER_SYNONYMS.get('profession', [])),
-                'age': (value_for(['age']) or None),
-                'dob': value_for(HEADER_SYNONYMS.get('dob', [])),
-                'birthplace': value_for(HEADER_SYNONYMS.get('birthplace', [])),
-                'hometown': value_for(HEADER_SYNONYMS.get('hometown', [])),
-                'marital_status': value_for(HEADER_SYNONYMS.get('marital_status', [])),
-                'children': value_for(HEADER_SYNONYMS.get('children', [])),
-                'nationality': value_for(HEADER_SYNONYMS.get('nationality', [])),
-                'religion': value_for(HEADER_SYNONYMS.get('religion', [])),
-                'ethnicity': value_for(HEADER_SYNONYMS.get('ethnicity', [])),
-                'folder_name': value_for(HEADER_SYNONYMS.get('folder_name', [])) or safe_folder_name(name_val)
-            }
+                data = {
+                    'name': name_val,
+                    'aka': value_for(HEADER_SYNONYMS.get('aka', [])),
+                    'profession': value_for(HEADER_SYNONYMS.get('profession', [])),
+                    'age': (value_for(['age']) or None),
+                    'dob': value_for(HEADER_SYNONYMS.get('dob', [])),
+                    'birthplace': value_for(HEADER_SYNONYMS.get('birthplace', [])),
+                    'hometown': value_for(HEADER_SYNONYMS.get('hometown', [])),
+                    'marital_status': value_for(HEADER_SYNONYMS.get('marital_status', [])),
+                    'children': value_for(HEADER_SYNONYMS.get('children', [])),
+                    'nationality': value_for(HEADER_SYNONYMS.get('nationality', [])),
+                    'religion': value_for(HEADER_SYNONYMS.get('religion', [])),
+                    'ethnicity': value_for(HEADER_SYNONYMS.get('ethnicity', [])),
+                    'folder_name': value_for(HEADER_SYNONYMS.get('folder_name', [])) or safe_folder_name(name_val)
+                }
 
-            # normalize age -> int if possible
-            try:
-                data['age'] = int(data['age']) if data['age'] not in (None, '') else None
-            except:
-                data['age'] = None
+                # normalize age -> int if possible
+                try:
+                    data['age'] = int(data['age']) if data['age'] not in (None, '') else None
+                except:
+                    data['age'] = None
 
-            # check existing (case-insensitive name match with fuzzy)
-            cur.execute('SELECT name, id FROM actresses WHERE lower(name)=lower(?)', (data['name'],))
-            existing = cur.fetchone()
-            if existing:
-                if mode == 'skip':
-                    skipped += 1
-                else:
-                    # Fuzzy check for merge/skip
-                    if fuzz.ratio(existing['name'], data['name']) < 80:
+                # check existing (case-insensitive name match with fuzzy)
+                cur.execute('SELECT name, id FROM actresses WHERE lower(name)=lower(?)', (data['name'],))
+                existing = cur.fetchone()
+                if existing:
+                    if mode == 'skip':
                         skipped += 1
-                        continue
-                    # update only mapped fields present - safe update with many columns
-                    update_cols = ['aka','profession','age','dob','birthplace','hometown','marital_status','children','nationality','religion','ethnicity','folder_name']
-                    set_vals = [data.get(c) for c in update_cols] + [existing['id']]
-                    cur.execute(f"UPDATE actresses SET {', '.join([c+'=?' for c in update_cols])} WHERE id=?", set_vals)
-                    # Update FTS
-                    cur.execute('INSERT OR REPLACE INTO actresses_fts(rowid, name, aka, description, tags, profession, specialties) SELECT id, name, aka, description, tags, profession, specialties FROM actresses WHERE id=?', (existing['id'],))
+                    else:
+                        # Fuzzy check for merge/skip
+                        if fuzz.ratio(existing['name'], data['name']) < 80:
+                            skipped += 1
+                            continue
+                        
+                        # update only mapped fields present - safe update with many columns
+                        update_cols = ['aka','profession','age','dob','birthplace','hometown','marital_status','children','nationality','religion','ethnicity','folder_name']
+                        set_vals = [data.get(c) for c in update_cols] + [existing['id']]
+                        cur.execute(f"UPDATE actresses SET {', '.join([c+'=?' for c in update_cols])} WHERE id=?", set_vals)
+                        
+                        # Update FTS
+                        cur.execute('INSERT OR REPLACE INTO actresses_fts(rowid, name, aka, description, tags, profession, specialties) SELECT id, name, aka, description, tags, profession, specialties FROM actresses WHERE id=?', (existing['id'],))
+                        upserted += 1
+                else:
+                    cur.execute('INSERT INTO actresses (name, aka, profession, age, dob, birthplace, hometown, marital_status, children, nationality, religion, ethnicity, folder_name) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)', (
+                        data['name'], data['aka'], data['profession'], data['age'], data['dob'], data['birthplace'], data['hometown'],
+                        data['marital_status'], data['children'], data['nationality'], data['religion'], data['ethnicity'], data['folder_name']
+                    ))
+                    new_id = cur.lastrowid
+                    # Insert to FTS
+                    cur.execute('INSERT OR REPLACE INTO actresses_fts(rowid, name, aka, description, tags, profession, specialties) VALUES (?, ?, ?, ?, ?, ?, ?)', 
+                                    (new_id, data['name'], data['aka'], '', '', data['profession'], ''))
                     upserted += 1
-            else:
-                cur.execute('INSERT INTO actresses (name, aka, profession, age, dob, birthplace, hometown, marital_status, children, nationality, religion, ethnicity, folder_name) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)', (
-                    data['name'], data['aka'], data['profession'], data['age'], data['dob'], data['birthplace'], data['hometown'],
-                    data['marital_status'], data['children'], data['nationality'], data['religion'], data['ethnicity'], data['folder_name']
-                ))
-                new_id = cur.lastrowid
-                # Insert to FTS
-                cur.execute('INSERT OR REPLACE INTO actresses_fts(rowid, name, aka, description, tags, profession, specialties) VALUES (?, ?, ?, ?, ?, ?, ?)', 
-                            (new_id, data['name'], data['aka'], '', '', data['profession'], ''))
-                upserted += 1
 
-        conn.commit(); conn.close()
-        flash(f'CSV import complete. Upserted: {upserted}, Skipped: {skipped}', 'success')
-        return redirect(url_for('index'))
+            conn.commit()
+            
+            # 4. SUCCESS RESPONSE: Return JSON instead of redirect
+            return jsonify({
+                'success': True, 
+                'message': f'CSV import complete. Upserted: {upserted}, Skipped: {skipped}',
+                'upserted': upserted,
+                'skipped': skipped
+            }), 200
 
+        except Exception as e:
+            # 5. Database Error Handling (Return JSON)
+            conn.rollback()
+            return jsonify({
+                'success': False, 
+                'message': f'Database Error during import: {e}'
+            }), 500
+        
+        finally:
+            conn.close()
+
+    # GET request handler (for displaying the form) - This remains unchanged
     return render_template('import_csv.html',
         MARITAL_STATUS_OPTIONS=MARITAL_STATUS_OPTIONS,
         CHILDREN_OPTIONS=CHILDREN_OPTIONS,
@@ -1065,6 +1169,95 @@ if SCHEDULER_AVAILABLE:
     scheduler = BackgroundScheduler()
     scheduler.add_job(func=lambda: backup_database(automated=True), trigger="cron", hour=0, minute=0)
     scheduler.start()
+
+# --------------------------
+# Update Age from DOB Logic
+def update_all_ages_from_dob():
+    conn = get_conn()
+    cur = conn.cursor()
+
+    # Make sure the age column exists (safe to run multiple times)
+    cur.execute("PRAGMA table_info(actresses)")
+    columns = [info[1] for info in cur.fetchall()]
+    if 'age' not in columns:
+        cur.execute("ALTER TABLE actresses ADD COLUMN age INTEGER")
+        print("Added missing 'age' column")
+
+    # Fetch all rows that have a dob
+    cur.execute("SELECT id, dob FROM actresses WHERE dob IS NOT NULL AND TRIM(dob) != ''")
+    rows = cur.fetchall()
+
+    if not rows:
+        conn.close()
+        print("No DOBs found – nothing to update")
+        return
+
+    today = datetime.today()
+    updated = 0
+    skipped = 0
+
+    for row in rows:
+        actress_id = row['id']
+        raw = str(row['dob']).strip()
+
+        # Try many common formats
+        parsed = None
+        formats = [
+            '%Y/%m/%d', '%Y-%m-%d', '%Y.%m.%d',
+            '%Y/%m/%d', '%Y-%m-%d',                 # standard
+            '%d/%m/%Y', '%d-%m-%Y', '%d.%m.%Y',     # day-first (common in some countries)
+            '%Y%m%d', '%d%m%Y'                     # no separators
+        ]
+
+        for fmt in formats:
+            try:
+                parsed = datetime.strptime(raw, fmt)
+                break
+            except ValueError:
+                continue
+
+        # Last resort: extract numbers and guess YYYY-MM-DD or YYYY/MM/DD
+        if parsed is None:
+            import re
+            numbers = re.findall(r'\d+', raw)
+            if len(numbers) >= 3:
+                y, m, d = int(numbers[0]), int(numbers[1]), int(numbers[2])
+                if y < 100:  # probably DD-MM-YY
+                    y += 1900 if y >= 50 else 2000
+                if 1900 <= y <= datetime.now().year and 1 <= m <= 12 and 1 <= d <= 31:
+                    try:
+                        parsed = datetime(y, m, d)
+                    except ValueError:
+                        pass
+
+        if parsed is None:
+            print(f"Warning: Can't parse DOB for ID {actress_id}: '{raw}'")
+            skipped += 1
+            continue
+
+        # Calculate real age
+        age = today.year - parsed.year
+        if (today.month, today.day) < (parsed.month, parsed.day):
+            age -= 1
+
+        # Update database
+        cur.execute("UPDATE actresses SET age = ? WHERE id = ?", (age, actress_id))
+        updated += 1
+
+    conn.commit()
+    conn.close()
+    print(f"Age update complete: {updated} actresses updated, {skipped} invalid DOBs skipped")
+
+## Update Age from DOB Route
+@app.route('/update-ages')
+def route_update_ages():
+    update_all_ages_from_dob()
+    return """
+    <h2>All ages calculated and saved!</h2>
+    <p>Check your terminal/console for details.</p>
+    <a href="/dashboard">← Go to Dashboard</a> | 
+    <a href="/">← Home</a>
+    """
 
 # --------------------------
 # Run

@@ -1,318 +1,402 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-md">
-  <h2 class="text-3xl font-bold mb-6">Import CSV - Advanced Guide & Preview</h2>
-  
-  <!-- Upload Form -->
-  <form id="csvForm" method="post" enctype="multipart/form-data">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <h2 class="text-3xl font-bold mb-6">Import CSV - Advanced Guide & Preview</h2>
     
-    <div class="mb-6">
-      <label for="csvfile" class="block text-sm font-medium text-gray-700 mb-2">Select CSV Files</label>
-      <input type="file" id="csvfile" name="csvfile" accept=".csv,.tsv,.txt" multiple required 
-             class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
-      <p class="mt-1 text-sm text-gray-500">Supports multiple CSV, TSV, and tab-delimited files. Auto-detects delimiters (comma, tab, semicolon).</p>
-      <div id="selectedFiles" class="mt-2 hidden">
-        <h5 class="font-medium text-sm mb-1">Selected Files:</h5>
-        <ul id="filesList" class="text-xs text-gray-600 space-y-0.5 list-disc list-inside"></ul>
-      </div>
-    </div>
-    
-    <div class="mb-6">
-      <label for="mode" class="block text-sm font-medium text-gray-700 mb-2">Import Mode</label>
-      <select id="mode" name="mode" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-        <option value="skip">Skip duplicates (fuzzy match >80%)</option>
-        <option value="update">Update existing (merge fields on match)</option>
-        <option value="overwrite">Overwrite all (dangerous - backs up first)</option>
-      </select>
-      <p class="mt-1 text-sm text-gray-500">Duplicates are detected via name fuzzy matching (e.g., "Abella Reid" vs. "A. Reid").</p>
-    </div>
-    
-    <button type="submit" id="submitBtn" class="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50">
-      <span id="submitText">Import Files</span>
-      <span id="submitSpinner" class="hidden ml-2">Processing...</span>
-    </button>
-  </form>
+    <!-- Upload Form -->
+    <form id="csvForm" method="post" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <div class="mb-6">
+            <label for="csvfile" class="block text-sm font-medium text-gray-700 mb-2">Select CSV Files</label>
+            <!-- IMPORTANT: 'multiple' is here, but JS handles the submission sequentially -->
+            <input type="file" id="csvfile" name="csvfile" accept=".csv,.tsv,.txt" multiple required 
+                    class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
+            <p class="mt-1 text-sm text-gray-500">Supports multiple CSV, TSV, and tab-delimited files. Auto-detects delimiters (comma, tab, semicolon).</p>
+            <div id="selectedFiles" class="mt-2 hidden">
+                <h5 class="font-medium text-sm mb-1">Selected Files:</h5>
+                <ul id="filesList" class="text-xs text-gray-600 space-y-0.5 list-disc list-inside"></ul>
+            </div>
+        </div>
+        
+        <div class="mb-6">
+            <label for="mode" class="block text-sm font-medium text-gray-700 mb-2">Import Mode</label>
+            <select id="mode" name="mode" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                <option value="skip">Skip duplicates (fuzzy match >80%)</option>
+                <option value="update">Update existing (merge fields on match)</option>
+                <option value="overwrite">Overwrite all (dangerous - backs up first)</option>
+            </select>
+            <p class="mt-1 text-sm text-gray-500">Duplicates are detected via name fuzzy matching (e.g., "Abella Reid" vs. "A. Reid").</p>
+        </div>
+        
+        <button type="submit" id="submitBtn" class="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50">
+            <span id="submitText">Import Files</span>
+            <span id="submitSpinner" class="hidden ml-2">Processing...</span>
+        </button>
+    </form>
 
-  <!-- Progress Container -->
-  <div id="progressContainer" class="hidden mt-6">
-    <div class="mb-2 text-sm font-medium text-gray-700">Import Progress</div>
-    <div class="w-full bg-gray-200 rounded-full h-2">
-      <div id="progressBar" class="bg-indigo-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+    <!-- Progress Container -->
+    <div id="progressContainer" class="hidden mt-6">
+        <div class="mb-2 text-sm font-medium text-gray-700">Import Progress</div>
+        <div class="w-full bg-gray-200 rounded-full h-2">
+            <div id="progressBar" class="bg-indigo-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+        <div id="progressStatus" class="mt-2 text-sm text-gray-500"></div>
+        <div id="overallSummary" class="mt-2 text-sm font-medium text-gray-700 hidden"></div>
+        <button id="goToDashboardBtn" class="mt-4 bg-gray-200 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-300 focus:outline-none hidden" onclick="window.location.href = '/';">
+            Go to MainPage
+        </button>
     </div>
-    <div id="progressStatus" class="mt-2 text-sm text-gray-500"></div>
-  </div>
 
-  <!-- Preview Section (Hidden until file selected) -->
-  <div id="previewSection" class="mt-8 hidden">
-    <h3 class="text-xl font-semibold mb-4">Preview & Auto-Mapping (First File)</h3>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <!-- Detected Headers & Mappings -->
-      <div class="bg-gray-50 p-4 rounded-md">
-        <h4 class="font-medium mb-2">Detected Headers (First Row)</h4>
-        <ul id="headerList" class="text-sm space-y-1"></ul>
-        <div id="mappingSuggestions" class="mt-3">
-          <h5 class="font-medium text-sm mb-1">Suggested Auto-Mappings:</h5>
-          <ul id="mappingList" class="text-xs text-gray-600 space-y-0.5"></ul>
+    <!-- Preview Section (Hidden until file selected) -->
+    <div id="previewSection" class="mt-8 hidden">
+        <h3 class="text-xl font-semibold mb-4">Preview & Auto-Mapping (First File)</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Detected Headers & Mappings -->
+            <div class="bg-gray-50 p-4 rounded-md">
+                <h4 class="font-medium mb-2">Detected Headers (First Row)</h4>
+                <ul id="headerList" class="text-sm space-y-1"></ul>
+                <div id="mappingSuggestions" class="mt-3">
+                    <h5 class="font-medium text-sm mb-1">Suggested Auto-Mappings:</h5>
+                    <ul id="mappingList" class="text-xs text-gray-600 space-y-0.5"></ul>
+                </div>
+            </div>
+            
+            <!-- Sample Data Preview -->
+            <div class="bg-gray-50 p-4 rounded-md">
+                <h4 class="font-medium mb-2">First 5 Rows Preview</h4>
+                <div class="overflow-x-auto">
+                    <table id="previewTable" class="min-w-full text-xs border-collapse border border-gray-300">
+                        <thead class="bg-gray-200">
+                            <tr id="tableHeader"></tr>
+                        </thead>
+                        <tbody id="tableBody"></tbody>
+                    </table>
+                </div>
+                <p id="rowCount" class="mt-2 text-xs text-gray-500"></p>
+            </div>
         </div>
-      </div>
-      
-      <!-- Sample Data Preview -->
-      <div class="bg-gray-50 p-4 rounded-md">
-        <h4 class="font-medium mb-2">First 5 Rows Preview</h4>
-        <div class="overflow-x-auto">
-          <table id="previewTable" class="min-w-full text-xs border-collapse border border-gray-300">
-            <thead class="bg-gray-200">
-              <tr id="tableHeader"></tr>
-            </thead>
-            <tbody id="tableBody"></tbody>
-          </table>
+        <div class="mt-4 text-sm text-gray-600">
+            <strong>Notes:</strong> Preview shows raw data from first file. Backend will parse ages to integers, dates to ISO, and skip invalid rows. Estimated import: <span id="estimatedRows"></span> rows across all files.
         </div>
-        <p id="rowCount" class="mt-2 text-xs text-gray-500"></p>
-      </div>
     </div>
-    <div class="mt-4 text-sm text-gray-600">
-      <strong>Notes:</strong> Preview shows raw data from first file. Backend will parse ages to integers, dates to ISO, and skip invalid rows. Estimated import: <span id="estimatedRows"></span> rows across all files.
-    </div>
-  </div>
 
-  <!-- Comprehensive Guide -->
-  <div class="mt-12">
-    <h3 class="text-xl font-semibold mb-4">Import Guide</h3>
-    
-    <!-- Accordion-style sections -->
-    <div class="space-y-4">
-      <!-- Required Fields -->
-      <details class="bg-gray-50 p-4 rounded-md border-l-4 border-indigo-500">
-        <summary class="font-medium cursor-pointer">1. Required Fields & Auto-Mapping</summary>
-        <div class="mt-3 text-sm text-gray-700">
-          <p><strong>Required:</strong> A "Name" column (case-insensitive synonyms: Name, Full Name, Model Name, Actor, Actress).</p>
-          <p><strong>Auto-Mapped (Optional):</strong> The system intelligently maps common headers. Examples:</p>
-          <ul class="list-disc list-inside space-y-1 mt-2">
-            <li>AKA / Also Known As / Other Names → aka</li>
-            <li>Age / Years Old → age (parsed as integer; e.g., "25" or "Twenty-five" → 25)</li>
-            <li>DOB / Date of Birth / Birthday → dob (formats: MM/DD/YYYY, YYYY-MM-DD, "April 5, 1986")</li>
-            <li>Height / Feet / Inches → height (e.g., "5'10\"", "170 cm" → stored as text)</li>
-            <li>Ethnicity / Race / Origin → ethnicity (from your dropdown options)</li>
-            <li>Tags / Keywords / Categories → tags (comma-separated, auto-hashed like #tag)</li>
-            <li>Folder / Media Folder → folder_name (auto-generates from Name if missing, e.g., "abella_reid")</li>
-            <!-- Add more based on backend HEADER_SYNONYMS -->
-          </ul>
-          <p class="mt-2"><em>Unmapped fields are ignored. Download <a href="{{ url_for('export_csv') }}" class="text-indigo-600 underline">sample CSV template</a> to start.</em></p>
-        </div>
-      </details>
-      
-      <!-- Data Types & Validation -->
-      <details class="bg-gray-50 p-4 rounded-md border-l-4 border-green-500">
-        <summary class="font-medium cursor-pointer">2. Data Types & Validation</summary>
-        <div class="mt-3 text-sm text-gray-700">
-          <p>The importer handles flexible formats:</p>
-          <ul class="list-disc list-inside space-y-1 mt-2">
-            <li><strong>Numbers:</strong> Age → int (18-100); Weight → text (e.g., "127 lbs"); Measurements → text (e.g., "36-24-36")</li>
-            <li><strong>Dates:</strong> DOB/Birthday → text (standardized to MM/DD/YYYY)</li>
-            <li><strong>Booleans:</strong> HasVideos/HasPictures → 1/0 or Yes/No (defaults to 0)</li>
-            <li><strong>Lists:</strong> Languages/Tags/Piercings → comma-separated (e.g., "English, Spanish")</li>
-            <li><strong>Selects:</strong> Ethnicity, Status, etc. → matched to dropdown options; extras become "Other"</li>
-          </ul>
-          <p><strong>Errors:</strong> Invalid rows (e.g., age <18) are skipped with a summary report post-import. Encoding: UTF-8 auto-detected; large files (>10MB) processed in chunks.</p>
-        </div>
-      </details>
-      
-      <!-- Common Issues -->
-      <details class="bg-gray-50 p-4 rounded-md border-l-4 border-yellow-500">
-        <summary class="font-medium cursor-pointer">3. Common Issues & Troubleshooting</summary>
-        <div class="mt-3 text-sm text-gray-700">
-          <ul class="list-disc list-inside space-y-1">
-            <li><strong>Delimiter Issues:</strong> Non-comma files (e.g., semicolon ";")? Auto-detected, but preview will show if misaligned.</li>
-            <li><strong>Quotes/Escapes:</strong> Fields with commas? Use double-quotes ("); unescaped? Preview flags them.</li>
-            <li><strong>Duplicates:</strong> Fuzzy matching (85%+ similarity) warns in logs; use "Update" mode to merge.</li>
-            <li><strong>Empty Columns:</strong> Skipped gracefully; required Name can't be blank.</li>
-            <li><strong>File Size:</strong> Max 50MB per file; for larger, split and import sequentially. Multiple files processed in batch.</li>
-          </ul>
-          <p><em>Post-import: Check <a href="{{ url_for('index') }}" class="text-indigo-600 underline">Dashboard</a> for stats. Errors? View console or contact support.</em></p>
-        </div>
-      </details>
-      
-      <!-- Sample CSV -->
-      <details class="bg-gray-50 p-4 rounded-md border-l-4 border-blue-500">
-        <summary class="font-medium cursor-pointer">4. Sample CSV</summary>
-        <div class="mt-3">
-          <p class="text-sm text-gray-700 mb-2">Copy-paste this into a .csv file:</p>
-          <pre class="bg-gray-100 p-3 rounded text-xs overflow-x-auto font-mono" style="white-space: pre-wrap;">Name,AKA,Age,DOB,Ethnicity,Height,Description,Tags
+    <!-- Comprehensive Guide -->
+    <div class="mt-12">
+        <h3 class="text-xl font-semibold mb-4">Import Guide</h3>
+        
+        <!-- Accordion-style sections -->
+        <div class="space-y-4">
+            <!-- Required Fields -->
+            <details class="bg-gray-50 p-4 rounded-md border-l-4 border-indigo-500">
+                <summary class="font-medium cursor-pointer">1. Required Fields & Auto-Mapping</summary>
+                <div class="mt-3 text-sm text-gray-700">
+                    <p><strong>Required:</strong> A "Name" column (case-insensitive synonyms: Name, Full Name, Model Name, Actor, Actress).</p>
+                    <p><strong>Auto-Mapped (Optional):</strong> The system intelligently maps common headers. Examples:</p>
+                    <ul class="list-disc list-inside space-y-1 mt-2">
+                        <li>AKA / Also Known As / Other Names → aka</li>
+                        <li>Age / Years Old → age (parsed as integer; e.g., "25" or "Twenty-five" → 25)</li>
+                        <li>DOB / Date of Birth / Birthday → dob (formats: MM/DD/YYYY, YYYY-MM-DD, "April 5, 1986")</li>
+                        <li>Height / Feet / Inches → height (e.g., "5'10\"", "170 cm" → stored as text)</li>
+                        <li>Ethnicity / Race / Origin → ethnicity (from your dropdown options)</li>
+                        <li>Tags / Keywords / Categories → tags (comma-separated, auto-hashed like #tag)</li>
+                        <li>Folder / Media Folder → folder_name (auto-generates from Name if missing, e.g., "abella_reid")</li>
+                    </ul>
+                    <p class="mt-2"><em>Unmapped fields are ignored. Download <a href="{{ url_for('export_csv') }}" class="text-indigo-600 underline">sample CSV template</a> to start.</em></p>
+                </div>
+            </details>
+            
+            <!-- Data Types & Validation -->
+            <details class="bg-gray-50 p-4 rounded-md border-l-4 border-green-500">
+                <summary class="font-medium cursor-pointer">2. Data Types & Validation</summary>
+                <div class="mt-3 text-sm text-gray-700">
+                    <p>The importer handles flexible formats:</p>
+                    <ul class="list-disc list-inside space-y-1 mt-2">
+                        <li><strong>Numbers:</strong> Age → int (18-100); Weight → text (e.g., "127 lbs"); Measurements → text (e.g., "36-24-36")</li>
+                        <li><strong>Dates:</strong> DOB/Birthday → text (standardized to MM/DD/YYYY)</li>
+                        <li><strong>Booleans:</strong> HasVideos/HasPictures → 1/0 or Yes/No (defaults to 0)</li>
+                        <li><strong>Lists:</strong> Languages/Tags/Piercings → comma-separated (e.g., "English, Spanish")</li>
+                        <li><strong>Selects:</strong> Ethnicity, Status, etc. → matched to dropdown options; extras become "Other"</li>
+                    </ul>
+                    <p><strong>Errors:</strong> Invalid rows (e.g., age &lt;18) are skipped with a summary report post-import. Encoding: UTF-8 auto-detected; large files (&gt;10MB) processed in chunks.</p>
+                </div>
+            </details>
+            
+            <!-- Common Issues -->
+            <details class="bg-gray-50 p-4 rounded-md border-l-4 border-yellow-500">
+                <summary class="font-medium cursor-pointer">3. Common Issues & Troubleshooting</summary>
+                <div class="mt-3 text-sm text-gray-700">
+                    <ul class="list-disc list-inside space-y-1">
+                        <li><strong>Delimiter Issues:</strong> Non-comma files (e.g., semicolon ";")? Auto-detected, but preview will show if misaligned.</li>
+                        <li><strong>Quotes/Escapes:</strong> Fields with commas? Use double-quotes ("); unescaped? Preview flags them.</li>
+                        <li><strong>Duplicates:</strong> Fuzzy matching (85%+ similarity) warns in logs; use "Update" mode to merge.</li>
+                        <li><strong>Empty Columns:</strong> Skipped gracefully; required Name can't be blank.</li>
+                        <li><strong>File Size:</strong> Max 50MB per file; for larger, split and import sequentially. Multiple files processed in batch.</li>
+                    </ul>
+                    <p><em>Post-import: Check <a href="{{ url_for('index') }}" class="text-indigo-600 underline">Dashboard</a> for stats. Errors? View console or contact support.</em></p>
+                </div>
+            </details>
+            
+            <!-- Sample CSV -->
+            <details class="bg-gray-50 p-4 rounded-md border-l-4 border-blue-500">
+                <summary class="font-medium cursor-pointer">4. Sample CSV</summary>
+                <div class="mt-3">
+                    <p class="text-sm text-gray-700 mb-2">Copy-paste this into a .csv file:</p>
+                    <pre class="bg-gray-100 p-3 rounded text-xs overflow-x-auto font-mono" style="white-space: pre-wrap;">Name,AKA,Age,DOB,Ethnicity,Height,Description,Tags
 Jane Doe,J. Doe,28,"January 15, 1997",Caucasian,"5'6\"",Award-winning actress specializing in drama.,#drama #indie
 John Smith,,32,"05/20/1993",Asian,175 cm,Versatile performer with 10+ years experience.,#action #comedy</pre>
-          <p class="mt-1 text-xs text-gray-500">This matches your schema. Import to test.</p>
+                    <p class="mt-1 text-xs text-gray-500">This matches your schema. Import to test.</p>
+                </div>
+            </details>
         </div>
-      </details>
     </div>
-  </div>
 </div>
 
 <script>
-  // Client-side CSV Preview (using native JS + simple parser)
-  document.getElementById('csvfile').addEventListener('change', function(e) {
-    const files = Array.from(e.target.files);
-    if (files.length === 0) return;
-    
-    // Update submit button text
-    const submitText = document.getElementById('submitText');
-    submitText.textContent = files.length > 1 ? 'Import Files' : 'Import CSV';
-    
-    // Show selected files list
-    const selectedFilesDiv = document.getElementById('selectedFiles');
-    const filesList = document.getElementById('filesList');
-    filesList.innerHTML = files.map(f => `<li>${f.name} (${(f.size / 1024).toFixed(1)} KB)</li>`).join('');
-    selectedFilesDiv.classList.remove('hidden');
-    
-    // Preview first file
-    const file = files[0];
-    const reader = new FileReader();
-    reader.onload = function(ev) {
-      const text = ev.target.result;
-      const rows = parseCSV(text); // Simple parser below
-      if (rows.length === 0) {
-        alert('Invalid CSV in first file: No rows detected.');
-        return;
-      }
-      
-      // Show preview
-      document.getElementById('previewSection').classList.remove('hidden');
-      populatePreview(rows, files.length);
-      document.getElementById('submitBtn').disabled = false;
-    };
-    reader.readAsText(file, 'UTF-8');
-  });
+    // Global state for import summary
+    let importSummary = { totalFiles: 0, importedFiles: 0, upsertedTotal: 0, skippedTotal: 0 };
+    let filesToImport = [];
 
-  // Simple CSV Parser (handles comma/tab/semicolon; basic quote handling)
-  function parseCSV(text) {
-    const lines = text.split(/\r?\n/);
-    const rows = [];
-    let delimiter = detectDelimiter(lines[0]);
-    for (let i = 0; i < Math.min(lines.length, 6); i++) { // First row + 5 data
-      if (lines[i].trim()) {
-        rows.push(lines[i].split(new RegExp(`(?:${delimiter}|"[^"]*")`, 'g')).map(cell => cell.replace(/^"|"$/g, '').trim()));
-      }
-    }
-    return rows;
-  }
-
-  function detectDelimiter(line) {
-    const counts = { ',': (line.match(/,/g) || []).length, '\t': (line.match(/\t/g) || []).length, ';': (line.match(/;/g) || []).length };
-    return Object.entries(counts).reduce((a, b) => counts[a[0]] > b[1] ? a[0] : b[0])[0] || ',';
-  }
-
-  // Populate Preview
-  function populatePreview(rows, totalFiles) {
-    const headers = rows[0];
-    const dataRows = rows.slice(1);
-    
-    // Headers List
-    const headerList = document.getElementById('headerList');
-    headerList.innerHTML = headers.map(h => `<li class="flex justify-between"><span>${h}</span><span class="text-indigo-600">${getMapping(h)}</span></li>`).join('');
-    
-    // Mappings (based on backend synonyms)
-    const mappings = getAllMappings(headers);
-    const mappingList = document.getElementById('mappingList');
-    mappingList.innerHTML = Object.entries(mappings).map(([from, to]) => `<li><strong>${from}</strong> → ${to}</li>`).join('');
-    
-    // Table
-    const tableHeader = document.getElementById('tableHeader');
-    tableHeader.innerHTML = headers.map(h => `<th class="border px-2 py-1">${h}</th>`).join('');
-    const tableBody = document.getElementById('tableBody');
-    tableBody.innerHTML = dataRows.map(row => `<tr>${row.map(cell => `<td class="border px-2 py-1">${cell || ''}</td>`).join('')}</tr>`).join('');
-    
-    // Counts
-    const previewRows = dataRows.length;
-    const estimatedTotal = Math.max(rows.length - 1, 0) * totalFiles; // Rough estimate
-    document.getElementById('rowCount').textContent = `Preview (first file): ${previewRows} rows | Total files: ${totalFiles}`;
-    document.getElementById('estimatedRows').textContent = `${estimatedTotal} rows (approx.)`;
-  }
-
-  // Mapping Logic (mirrors backend HEADER_SYNONYMS)
-  const SYNONYMS = {
-    name: ['name', 'full name', 'model name', 'actor', 'actress'],
-    aka: ['aka', 'also known as', 'other names'],
-    age: ['age', 'years old'],
-    dob: ['dob', 'date of birth', 'birthday'],
-    ethnicity: ['ethnicity', 'race', 'origin'],
-    height: ['height', 'feet', 'inches'],
-    tags: ['tags', 'keywords', 'categories'],
-    description: ['description', 'bio'],
-    // Add more as needed
-  };
-
-  function getMapping(header) {
-    const lower = header.toLowerCase();
-    for (const [key, syns] of Object.entries(SYNONYMS)) {
-      if (syns.some(s => lower.includes(s))) return key;
-    }
-    return 'Unmapped';
-  }
-
-  function getAllMappings(headers) {
-    const map = {};
-    headers.forEach(h => {
-      const m = getMapping(h);
-      if (m !== 'Unmapped') map[h] = m;
-    });
-    return map;
-  }
-
-  // Submit with AJAX (synchronous handling - no real progress polling needed)
-  document.getElementById('csvForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const formData = new FormData(this);
-    const submitBtn = document.getElementById('submitBtn');
-    const submitText = document.getElementById('submitText');
-    const submitSpinner = document.getElementById('submitSpinner');
-    submitText.classList.add('hidden');
-    submitSpinner.classList.remove('hidden');
-    submitBtn.disabled = true;
-    document.getElementById('progressContainer').classList.remove('hidden');
-    document.getElementById('progressBar').style.width = '10%';
-    document.getElementById('progressStatus').textContent = 'Starting import...';
-
-    fetch('/import_csv', {
-      method: 'POST',
-      body: formData
-    }).then(response => {
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      return response.json();
-    }).then(data => {
-      // Simulate brief progress for UX
-      let progress = 10;
-      const interval = setInterval(() => {
-        progress += 18;
-        if (progress > 90) progress = 90;
-        document.getElementById('progressBar').style.width = progress + '%';
-        document.getElementById('progressStatus').textContent = 'Processing rows...';
-      }, 100);
-
-      setTimeout(() => {
-        clearInterval(interval);
-        document.getElementById('progressBar').style.width = '100%';
-        if (data.success) {
-          document.getElementById('progressStatus').innerHTML = `<span class="text-green-600">${data.message}</span>`;
-          setTimeout(() => {
-            window.location.href = '/';
-          }, 2000);
-        } else {
-          throw new Error(data.error || 'Unknown error');
+    // Client-side CSV Preview (using native JS + simple parser)
+    document.getElementById('csvfile').addEventListener('change', function(e) {
+        filesToImport = Array.from(e.target.files);
+        
+        if (filesToImport.length === 0) {
+            document.getElementById('previewSection').classList.add('hidden');
+            document.getElementById('selectedFiles').classList.add('hidden');
+            return;
         }
-      }, 800);  // Brief delay for "processing" feel
-    }).catch(err => {
-      console.error('Import error:', err);
-      document.getElementById('progressBar').style.width = '0%';
-      document.getElementById('progressStatus').innerHTML = `<span class="text-red-600">Failed: ${err.message}</span>`;
-      alert('Failed to start import: ' + err.message);
-      submitText.classList.remove('hidden');
-      submitSpinner.classList.add('hidden');
-      submitBtn.disabled = false;
-    });
-  });
 
-  // Accordion Support (native details/summary works)
+        importSummary = { 
+            totalFiles: filesToImport.length, 
+            importedFiles: 0, 
+            upsertedTotal: 0, 
+            skippedTotal: 0 
+        };
+        
+        // Update submit button text
+        const submitText = document.getElementById('submitText');
+        submitText.textContent = filesToImport.length > 1 ? `Import ${filesToImport.length} Files` : 'Import CSV';
+        
+        // Show selected files list
+        const selectedFilesDiv = document.getElementById('selectedFiles');
+        const filesList = document.getElementById('filesList');
+        filesList.innerHTML = filesToImport.map(f => `<li>${f.name} (${(f.size / 1024).toFixed(1)} KB)</li>`).join('');
+        selectedFilesDiv.classList.remove('hidden');
+        
+        // Preview first file
+        const file = filesToImport[0];
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            const text = ev.target.result;
+            const rows = parseCSV(text); // Simple parser below
+            if (rows.length < 2) {
+                alert('Invalid CSV in first file: Must contain header and at least one row of data.');
+                document.getElementById('submitBtn').disabled = true;
+                return;
+            }
+            
+            // Show preview
+            document.getElementById('previewSection').classList.remove('hidden');
+            populatePreview(rows, filesToImport.length);
+            document.getElementById('submitBtn').disabled = false;
+        };
+        reader.readAsText(file, 'UTF-8');
+    });
+
+    // Simple CSV Parser (handles comma/tab/semicolon; basic quote handling)
+    function parseCSV(text) {
+        const lines = text.split(/\r?\n/);
+        const rows = [];
+        let delimiter = detectDelimiter(lines[0]);
+        for (let i = 0; i < Math.min(lines.length, 6); i++) { // First row + 5 data
+            if (lines[i].trim()) {
+                // A simplified regex split that tries to ignore commas inside double quotes
+                const cells = lines[i].match(/(".*?"|[^" \t,;]+)(?=\s*[\t,;]|$)/g) || [lines[i]];
+                
+                // If it looks like a single item, retry with the detected delimiter
+                if (cells.length === 1 && lines[i].includes(delimiter)) {
+                    rows.push(lines[i].split(delimiter).map(cell => cell.replace(/^"|"$/g, '').trim()));
+                } else {
+                    rows.push(cells.map(cell => cell.replace(/^"|"$/g, '').trim()));
+                }
+            }
+        }
+        return rows;
+    }
+
+    function detectDelimiter(line) {
+        // Look for the delimiter that appears most frequently
+        const counts = { ',': (line.match(/,/g) || []).length, '\t': (line.match(/\t/g) || []).length, ';': (line.match(/;/g) || []).length };
+        let bestDelimiter = ',';
+        let maxCount = counts[','];
+
+        for (const [delimiter, count] of Object.entries(counts)) {
+            if (count > maxCount) {
+                maxCount = count;
+                bestDelimiter = delimiter;
+            }
+        }
+        return maxCount > 0 ? bestDelimiter : ','; // Default to comma if none found
+    }
+
+    // Populate Preview
+    function populatePreview(rows, totalFiles) {
+        const headers = rows[0];
+        const dataRows = rows.slice(1);
+        
+        // Headers List
+        const headerList = document.getElementById('headerList');
+        headerList.innerHTML = headers.map(h => `<li class="flex justify-between"><span>${h}</span><span class="text-indigo-600">${getMapping(h)}</span></li>`).join('');
+        
+        // Mappings (based on backend synonyms)
+        const mappings = getAllMappings(headers);
+        const mappingList = document.getElementById('mappingList');
+        mappingList.innerHTML = Object.entries(mappings).map(([from, to]) => `<li><strong>${from}</strong> → ${to}</li>`).join('');
+        
+        // Table
+        const tableHeader = document.getElementById('tableHeader');
+        tableHeader.innerHTML = headers.map(h => `<th class="border px-2 py-1">${h}</th>`).join('');
+        const tableBody = document.getElementById('tableBody');
+        tableBody.innerHTML = dataRows.map(row => `<tr>${row.map(cell => `<td class="border px-2 py-1">${cell || ''}</td>`).join('')}</tr>`).join('');
+        
+        // Counts
+        const previewRows = dataRows.length;
+        const estimatedTotal = (rows.length > 0 ? rows.length - 1 : 0) * totalFiles; // Rough estimate
+        document.getElementById('rowCount').textContent = `Preview (first file): ${previewRows} rows | Total files: ${totalFiles}`;
+        document.getElementById('estimatedRows').textContent = `${estimatedTotal} rows (approx.)`;
+    }
+
+    // Mapping Logic (mirrors backend HEADER_SYNONYMS) - Using a simple client-side version
+    const SYNONYMS = {
+        name: ['name', 'full name', 'model name', 'actor', 'actress'],
+        aka: ['aka', 'also known as', 'other names'],
+        age: ['age', 'years old'],
+        dob: ['dob', 'date of birth', 'birthday'],
+        ethnicity: ['ethnicity', 'race', 'origin'],
+        height: ['height', 'feet', 'inches'],
+        tags: ['tags', 'keywords', 'categories'],
+        description: ['description', 'bio'],
+        // Add more as needed
+    };
+
+    function getMapping(header) {
+        const lower = header.toLowerCase();
+        for (const [key, syns] of Object.entries(SYNONYMS)) {
+            // Check if the header contains any of the synonyms
+            if (syns.some(s => lower.includes(s))) return key;
+        }
+        return 'Unmapped';
+    }
+
+    function getAllMappings(headers) {
+        const map = {};
+        headers.forEach(h => {
+            const m = getMapping(h);
+            if (m !== 'Unmapped') map[h] = m;
+        });
+        return map;
+    }
+
+    // New: Sequential Import Function
+    async function importFilesSequentially(files, mode) {
+        const totalFiles = files.length;
+        let success = true;
+        const goToDashboardBtn = document.getElementById('goToDashboardBtn');
+        goToDashboardBtn.classList.add('hidden'); // Hide button while processing
+
+        for (let i = 0; i < totalFiles; i++) {
+            const file = files[i];
+            
+            // Update progress status for the current file
+            document.getElementById('progressStatus').textContent = `Processing file ${i + 1} of ${totalFiles}: ${file.name}...`;
+            
+            // Calculate progress percentage
+            const progress = ((i / totalFiles) * 100);
+            document.getElementById('progressBar').style.width = progress + '%';
+
+            // Create FormData for the single file submission
+            const formData = new FormData();
+            formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
+            formData.append('mode', mode);
+            // The file must be appended using the name the backend expects: 'csvfile'
+            formData.append('csvfile', file, file.name);
+
+            try {
+                const response = await fetch('/import_csv', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    importSummary.importedFiles++;
+                    importSummary.upsertedTotal += data.upserted || 0;
+                    importSummary.skippedTotal += data.skipped || 0;
+                } else {
+                    success = false;
+                    const errorMsg = data.message || `Failed to process file ${file.name}.`;
+                    console.error(`Error in ${file.name}:`, errorMsg);
+                    document.getElementById('progressStatus').innerHTML = `<span class="text-red-600">Failed to process ${file.name}. Error: ${errorMsg}. Halting batch.</span>`;
+                    break; // Stop on first error
+                }
+            } catch (err) {
+                success = false;
+                console.error(`Network or critical error during import of ${file.name}:`, err);
+                document.getElementById('progressStatus').innerHTML = `<span class="text-red-600">Critical error during import of ${file.name}. Halting batch.</span>`;
+                break;
+            }
+
+            // Update progress bar to reflect completion of the current file
+            const completedProgress = (((i + 1) / totalFiles) * 100);
+            document.getElementById('progressBar').style.width = completedProgress + '%';
+        }
+
+        // Final summary update
+        document.getElementById('progressStatus').textContent = `Import finished.`;
+        document.getElementById('overallSummary').classList.remove('hidden');
+        document.getElementById('overallSummary').innerHTML = `
+            <span class="${success ? 'text-green-600' : 'text-red-600'}">
+                Finished processing ${importSummary.importedFiles} of ${importSummary.totalFiles} files.
+                <br>Total Upserted: ${importSummary.upsertedTotal}, Total Skipped: ${importSummary.skippedTotal}
+            </span>
+        `;
+        
+        // Re-enable button and show dashboard button
+        const submitBtn = document.getElementById('submitBtn');
+        document.getElementById('submitText').classList.remove('hidden');
+        document.getElementById('submitSpinner').classList.add('hidden');
+        submitBtn.disabled = false;
+        goToDashboardBtn.classList.remove('hidden');
+    }
+
+
+    // Submit with AJAX (Now calls the sequential import handler)
+    document.getElementById('csvForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        if (filesToImport.length === 0) {
+            alert("Please select at least one file to import.");
+            return;
+        }
+
+        const mode = document.getElementById('mode').value;
+        const submitBtn = document.getElementById('submitBtn');
+        const submitText = document.getElementById('submitText');
+        const submitSpinner = document.getElementById('submitSpinner');
+        
+        // UI Setup
+        submitText.classList.add('hidden');
+        submitSpinner.classList.remove('hidden');
+        submitBtn.disabled = true;
+        document.getElementById('overallSummary').classList.add('hidden');
+        document.getElementById('progressContainer').classList.remove('hidden');
+        document.getElementById('progressBar').style.width = '0%';
+
+        // Start the sequential import process
+        importFilesSequentially(filesToImport, mode);
+    });
+
 </script>
 {% endblock %}
