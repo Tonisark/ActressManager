@@ -27,15 +27,6 @@ The Actress Manager Dashboard is designed to provide a centralized and visual ov
 
 ### Key Features
 
-  * **📈 Real-Time Dashboard:** Instantly view key metrics like **Total Actresses**, **Media Count**, and **Missing Thumbnails** (handling your 5000+ data set efficiently).
-  * **📊 Dynamic Charts:** Visual breakdown of Age Distribution, Ethnicity, and Occupation Categories using Chart.js.
-  * **⚙️ Robust Database Handling:** Uses `PRAGMA` checks to ensure smooth database operation even when schema changes (as seen in the backend logic).
-  * **🖼️ Media Tracking:** Specifically tracks profiles with existing thumbnails/videos to highlight data gaps.
-  * **🚀 Quick Action Interface:** Provides rapid navigation buttons for common tasks like adding a profile, importing data, and running backups.
-
------
-### Key Features
-
 * **📈 Real-Time Dashboard:** Instantly view key metrics like **Total Actresses**, **Media Count**, and **Missing Thumbnails** (handling your 5000+ data set efficiently).
 * **📊 Dynamic Charts:** Visual breakdown of Age Distribution, Ethnicity, and Occupation Categories using Chart.js.
 * **⚙️ Robust Database Handling:** Uses `PRAGMA` checks to ensure smooth database operation even when schema changes.
