@@ -82,7 +82,7 @@ export FLASK_APP=app.py  # Assuming your main Python file is named app.py
 flask run
 ```
 
-The application should now be accessible in your web browser at: **`http://127.0.0.1:5000/dashboard`**
+The application should now be accessible in your web browser at: **`http://127.0.0.1:5000/`**
 
 -----
 
