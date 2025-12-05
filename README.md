@@ -124,3 +124,4 @@ This project is licensed under the **MIT License**.
 ## 📬 Contact
 
 Project Link: [https://github.com/Tonisark/ActressManager.git](https://github.com/Tonisark/ActressManager.git)
+Email : [contactmohrez@gmail.com](contactmohrez@gmail.com)
