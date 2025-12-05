@@ -34,6 +34,38 @@ The Actress Manager Dashboard is designed to provide a centralized and visual ov
   * **🚀 Quick Action Interface:** Provides rapid navigation buttons for common tasks like adding a profile, importing data, and running backups.
 
 -----
+### Key Features
+
+* **📈 Real-Time Dashboard:** Instantly view key metrics like **Total Actresses**, **Media Count**, and **Missing Thumbnails** (handling your 5000+ data set efficiently).
+* **📊 Dynamic Charts:** Visual breakdown of Age Distribution, Ethnicity, and Occupation Categories using Chart.js.
+* **⚙️ Robust Database Handling:** Uses `PRAGMA` checks to ensure smooth database operation even when schema changes.
+* **🖼️ Media Tracking:** Specifically tracks profiles with existing thumbnails/videos to highlight data gaps.
+* **🚀 Quick Action Interface:** Provides rapid navigation buttons for common tasks like adding a profile, importing data, and running backups.
+
+---
+
+## 🗺️ Project Roadmap (Future Plans)
+
+This dashboard is actively being developed. Here's a look at the planned features:
+
+### Phase 1: Stability and Core Utility (Focus: Security & Editing)
+
+* **🔒 User Authentication:** Implement secure login/logout functionality using Flask-Login.
+* **📝 Profile Editing Form:** Create a dedicated, validated web form for easy editing of individual profile details.
+* **🖼️ Media Integrity Check:** Develop the logic for the "Scan Missing" action to verify file/URL integrity of all media paths.
+
+### Phase 2: Search and Analysis (Focus: Data Access)
+
+* **🔍 Dynamic AJAX Search:** Implement a fast, asynchronous search bar for instantaneous filtering of the profile list.
+* **📊 Trend Charts:** Add a new dashboard chart to track profiles added per month and monitor activity trends over time.
+* **⬇️ Data Export:** Enable exporting filtered profile lists to CSV or JSON formats.
+
+### Phase 3: Expansion and Automation
+
+* **🔄 Batch CSV/JSON Import:** Functionality to mass-create or update profiles via file import.
+* **🛡️ Automated Backups:** Implement scheduled, automated database backups to ensure data safety.
+
+
 
 ## 🚀 Getting Started
 
