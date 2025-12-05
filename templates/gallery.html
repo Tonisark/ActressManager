@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gallery - ID {{ actress_id }} ({{ folder }})</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            background-color: #f4f4f4; 
+        }
+        h1 { 
+            color: #333; 
+            text-align: center; 
+        }
+        .back-link { 
+            display: inline-block; 
+            margin-bottom: 20px; 
+            padding: 10px; 
+            background: #007bff; 
+            color: white; 
+            text-decoration: none; 
+            border-radius: 5px; 
+        }
+        .back-link:hover { 
+            background: #0056b3; 
+        }
+        .gallery { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(200px, 200px)); /* Fixed 200px width per card, no expansion */
+            gap: 15px; 
+            justify-content: center; /* Center the grid if fewer cards */
+            max-width: 1000px; /* Limit overall gallery width */
+            margin: 0 auto; /* Center the gallery container */
+        }
+        .media-card { 
+            background: white; 
+            border-radius: 10px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
+            overflow: hidden; 
+            transition: transform 0.2s, box-shadow 0.2s; 
+            cursor: pointer; 
+            width: 200px; /* Fixed width to match grid */
+            height: 180px; /* Fixed total height for uniformity */
+        }
+        .media-card:hover { 
+            transform: translateY(-5px); 
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2); 
+        }
+        .media-card img { 
+            width: 100%; 
+            height: 140px; 
+            object-fit: cover; 
+        }
+        .card-title { 
+            padding: 10px; 
+            margin: 0; 
+            font-size: 14px; 
+            color: #555; 
+            text-align: center; 
+            background: #f8f9fa; 
+            border-top: 1px solid #e9ecef; 
+            word-break: break-word; 
+            height: 40px; /* Fixed height for title */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .no-images { 
+            text-align: center; 
+            color: #666; 
+            font-style: italic; 
+        }
+        .file-list { 
+            background: white; 
+            padding: 10px; 
+            border-radius: 5px; 
+            margin-bottom: 20px; 
+            overflow-x: auto; 
+        }
+        .file-list ul { 
+            list-style: none; 
+            padding: 0; 
+            display: flex; 
+            flex-wrap: wrap; 
+            gap: 10px; 
+        }
+        .file-list li { 
+            white-space: nowrap; 
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.9);
+        }
+        .modal-content {
+            margin: auto;
+            display: block;
+            width: 80%;
+            max-width: 700px;
+            max-height: 80%;
+            object-fit: contain;
+        }
+        .close {
+            position: absolute;
+            top: 15px;
+            right: 35px;
+            color: #f1f1f1;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover { 
+            color: #bbb; 
+        }
+        .modal-caption {
+            text-align: center; 
+            color: white; 
+            margin-top: 10px; 
+            font-size: 18px; 
+        }
+    </style>
+</head>
+<body>
+    <h1>Gallery for Folder: {{ folder }} (ID: {{ actress_id }})</h1>
+    <a href="{{ url_for('index') }}" class="back-link">← Back to Home</a>
+    
+    {% if files %}
+        <div class="file-list">
+            <strong>Images ({{ files|length }} total):</strong>
+            <ul>
+                {% for file in files %}
+                    <li><a href="/media/{{ folder }}/{{ file }}" target="_blank">{{ file }}</a></li>
+                {% endfor %}
+            </ul>
+        </div>
+        <div class="gallery">
+            {% for file in files %}
+                <div class="media-card" onclick="openModal('/media/{{ folder }}/{{ file }}', '{{ file }}')">
+                    <img src="/media/{{ folder }}/{{ file }}" alt="{{ file }}" loading="lazy">
+                    <p class="card-title">{{ file }}</p>
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- Modal -->
+        <div id="imageModal" class="modal">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <img class="modal-content" id="modalImg">
+            <div class="modal-caption">
+                <p id="caption"></p>
+            </div>
+        </div>
+
+        <script>
+            function openModal(imgSrc, imgAlt) {
+                const modal = document.getElementById('imageModal');
+                const modalImg = document.getElementById('modalImg');
+                const captionText = document.getElementById('caption');
+                modal.style.display = 'block';
+                modalImg.src = imgSrc;
+                captionText.innerHTML = imgAlt;
+            }
+            function closeModal() {
+                document.getElementById('imageModal').style.display = 'none';
+            }
+            // Close modal if clicking outside image
+            window.onclick = function(event) {
+                const modal = document.getElementById('imageModal');
+                if (event.target == modal) {
+                    modal.style.display = 'none';
+                }
+            }
+        </script>
+    {% else %}
+        <p class="no-images">No images found in this gallery. Add some to the {{ folder }} media folder!</p>
+    {% endif %}
+</body>
+</html>

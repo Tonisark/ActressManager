@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if actress.id %}Edit{% else %}Add{% endif %} Actress</title>
+    <!-- Bootstrap 5 CDN for basic styling -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .form-section { margin-bottom: 2rem; }
+        .form-section h4 { color: #495057; border-bottom: 1px solid #dee2e6; padding-bottom: 0.5rem; }
+        .error { color: #dc3545; font-size: 0.875em; }
+    </style>
+</head>
+<body class="bg-light p-4">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-10 col-lg-8">
+                <h1 class="text-center mb-4">{% if actress.id %}Edit{% else %}Add{% endif %} Actress</h1>
+                
+                <!-- Flash Messages -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ 'danger' if category == 'error' else 'success' if category == 'success' else 'info' }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <form method="POST" enctype="multipart/form-data">
+                    {{ form.csrf_token }}  <!-- CSRF Token -->
+
+                    <!-- Basic Info Section -->
+                    <div class="form-section">
+                        <h4>Basic Information</h4>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.name.id }}" class="form-label">Name <span class="text-danger">*</span></label>
+                                {{ form.name(class="form-control", value=actress.name if actress else '') }}
+                                {% if form.name.errors %}
+                                    <div class="error">{{ form.name.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.aka.id }}" class="form-label">AKA</label>
+                                {{ form.aka(class="form-control", value=actress.aka if actress else '') }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.age.id }}" class="form-label">Age</label>
+                                {{ form.age(class="form-control", value=actress.age if actress else '') }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.dob.id }}" class="form-label">Date of Birth</label>
+                                {{ form.dob(class="form-control", value=actress.dob if actress else '') }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.birthplace.id }}" class="form-label">Birthplace</label>
+                                {{ form.birthplace(class="form-control", value=actress.birthplace if actress else '') }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.hometown.id }}" class="form-label">Hometown</label>
+                                {{ form.hometown(class="form-control", value=actress.hometown if actress else '') }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Personal Details Section -->
+                    <div class="form-section">
+                        <h4>Personal Details</h4>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.marital_status.id }}" class="form-label">Marital Status</label>
+                                {{ form.marital_status(class="form-select") }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.children.id }}" class="form-label">Children</label>
+                                {{ form.children(class="form-select") }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.nationality.id }}" class="form-label">Nationality</label>
+                                {{ form.nationality(class="form-control", value=actress.nationality if actress else '') }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.religion.id }}" class="form-label">Religion</label>
+                                {{ form.religion(class="form-select") }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.ethnicity.id }}" class="form-label">Ethnicity</label>
+                                {{ form.ethnicity(class="form-select") }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.height.id }}" class="form-label">Height</label>
+                                {{ form.height(class="form-control", value=actress.height if actress else '') }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.weight.id }}" class="form-label">Weight</label>
+                                {{ form.weight(class="form-control", value=actress.weight if actress else '') }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.measurements.id }}" class="form-label">Measurements</label>
+                                {{ form.measurements(class="form-control", value=actress.measurements if actress else '') }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.eye_color.id }}" class="form-label">Eye Color</label>
+                                {{ form.eye_color(class="form-select") }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.hair_color.id }}" class="form-label">Hair Color</label>
+                                {{ form.hair_color(class="form-select") }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Social & Professional Section -->
+                    <div class="form-section">
+                        <h4>Social Media & Professional</h4>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.profession.id }}" class="form-label">Profession</label>
+                                {{ form.profession(class="form-control", value=actress.profession if actress else '') }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.occupation_category.id }}" class="form-label">Occupation Category</label>
+                                {{ form.occupation_category(class="form-select") }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.instagram.id }}" class="form-label">Instagram</label>
+                                {{ form.instagram(class="form-control", value=actress.instagram if actress else '') }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.tiktok.id }}" class="form-label">TikTok</label>
+                                {{ form.tiktok(class="form-control", value=actress.tiktok if actress else '') }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.twitter.id }}" class="form-label">Twitter</label>
+                                {{ form.twitter(class="form-control", value=actress.twitter if actress else '') }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.onlyfans.id }}" class="form-label">OnlyFans</label>
+                                {{ form.onlyfans(class="form-control", value=actress.onlyfans if actress else '') }}
+                            </div>
+                            <div class="col-12 mb-3">
+                                <label for="{{ form.languages.id }}" class="form-label">Languages</label>
+                                {{ form.languages(class="form-control", value=actress.languages if actress else '') }}
+                            </div>
+                            <div class="col-12 mb-3">
+                                <label for="{{ form.tags.id }}" class="form-label">Tags (comma-separated)</label>
+                                {{ form.tags(class="form-control", value=actress.tags if actress else '') }}
+                            </div>
+                            <div class="col-12 mb-3">
+                                <label for="{{ form.specialties.id }}" class="form-label">Specialties</label>
+                                {{ form.specialties(class="form-control", value=actress.specialties if actress else '') }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Additional Details Section -->
+                    <div class="form-section">
+                        <h4>Additional Details</h4>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.birthday.id }}" class="form-label">Birthday</label>
+                                {{ form.birthday(class="form-control", value=actress.birthday if actress else '') }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.country.id }}" class="form-label">Country</label>
+                                {{ form.country(class="form-control", value=actress.country if actress else '') }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.piercings.id }}" class="form-label">Piercings</label>
+                                {{ form.piercings(class="form-control", value=actress.piercings if actress else '') }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.tattoo.id }}" class="form-label">Tattoo</label>
+                                {{ form.tattoo(class="form-control", value=actress.tattoo if actress else '') }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.status.id }}" class="form-label">Status</label>
+                                {{ form.status(class="form-select") }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.folder_name.id }}" class="form-label">Folder Name</label>
+                                {{ form.folder_name(class="form-control", value=actress.folder_name if actress else '') }}
+                            </div>
+                            <div class="col-12 mb-3">
+                                <div class="form-check">
+                                    {{ form.has_videos(class="form-check-input", id="has_videos") }}
+                                    <label for="has_videos" class="form-check-label">Has Videos</label>
+                                </div>
+                                <div class="form-check">
+                                    {{ form.has_pictures(class="form-check-input", id="has_pictures") }}
+                                    <label for="has_pictures" class="form-check-label">Has Pictures</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.sexual_orientation.id }}" class="form-label">Sexual Orientation</label>
+                                {{ form.sexual_orientation(class="form-control", value=actress.sexual_orientation if actress else '') }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.bdsm_orientation.id }}" class="form-label">BDSM Orientation</label>
+                                {{ form.bdsm_orientation(class="form-control", value=actress.bdsm_orientation if actress else '') }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Description & Upload -->
+                    <div class="form-section">
+                      <h4>Description & Media</h4>
+                      <div class="mb-3">
+                        <label for="{{ form.description.id }}" class="form-label">Description</label>
+                        {{ form.description(class="form-control", rows=5, value=actress.description if actress else '') }}
+                      </div>
+                      <div class="mb-3">
+                        <label for="thumbnail" class="form-label">Thumbnail Image</label>
+                        <input type="file" class="form-control" id="thumbnail" name="thumbnail" accept="image/*">
+                        {% if actress.folder_name %}
+                          <small class="text-muted">Current: {{ thumbnail_path if thumbnail_path else 'None' }}</small>  <!-- Updated: Use passed variable -->
+                        {% endif %}
+                      </div>
+                    </div>
+
+                    <!-- Submit Buttons -->
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('index') }}" class="btn btn-secondary me-md-2">Cancel</a>
+                        <button type="submit" class="btn btn-primary">{% if actress.id %}Update{% else %}Add{% endif %} Actress</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS for alerts/dismissals -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

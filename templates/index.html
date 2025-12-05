@@ -1,0 +1,348 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+  <form id="filterForm" method="get" class="flex items-center gap-2 flex-wrap">
+    <input name="q" value="{{ q }}" placeholder="Search name, aka, tags..." class="px-3 py-2 rounded border" />
+    <select name="status" class="px-2 py-2 rounded border">
+      <option value="">All status</option>
+      {% for s in STATUS_OPTIONS %}
+        <option value="{{ s }}" {% if status_filter==s %}selected{% endif %}>{{ s }}</option>
+      {% endfor %}
+    </select>
+    <select name="ethnicity" class="px-2 py-2 rounded border">
+      <option value="">All ethnicity</option>
+      {% for e in ETHNICITY_OPTIONS %}
+        <option value="{{ e }}" {% if ethnicity_filter==e %}selected{% endif %}>{{ e }}</option>
+      {% endfor %}
+    </select>
+    <select name="occupation_category" class="px-2 py-2 rounded border">
+      <option value="">All occupation</option>
+      {% for oc in OCCUPATION_CATEGORY_OPTIONS %}
+        <option value="{{ oc }}" {% if occupation_filter==oc %}selected{% endif %}>{{ oc }}</option>
+      {% endfor %}
+    </select>
+    <input name="tags" value="{{ tag_filter }}" placeholder="Filter by tags (e.g., #blonde)" class="px-3 py-2 rounded border" />
+    <select name="sort" class="px-2 py-2 rounded border">
+      <option value="name" {% if sort_by=='name' %}selected{% endif %}>Sort: Name</option>
+      <option value="age" {% if sort_by=='age' %}selected{% endif %}>Sort: Age</option>
+      <option value="country" {% if sort_by=='country' %}selected{% endif %}>Sort: Country</option>
+    </select>
+    <button type="submit" class="px-3 py-2 bg-indigo-600 text-white rounded">Apply</button>
+    <a id="exportCsvLink" href="/export_csv?q={{ q }}&status={{ status_filter }}&ethnicity={{ ethnicity_filter }}&occupation_category={{ occupation_filter }}&tags={{ tag_filter }}&sort={{ sort_by }}" class="px-3 py-2 bg-green-600 text-white rounded">Export CSV</a>
+    <a id="exportJsonLink" href="/export_json?q={{ q }}&status={{ status_filter }}&ethnicity={{ ethnicity_filter }}&occupation_category={{ occupation_filter }}&tags={{ tag_filter }}&sort={{ sort_by }}" class="px-3 py-2 bg-blue-600 text-white rounded">Export JSON</a>
+  </form>
+</div>
+
+<!-- Bulk Actions -->
+<div id="bulkActions" class="mb-4 p-3 bg-gray-50 rounded hidden">
+  <form id="bulkForm" method="post" action="/bulk">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="flex items-center gap-3">
+      <select name="action" class="px-2 py-2 rounded border">
+        <option value="delete">Bulk Delete</option>
+        <option value="update_status">Update Status</option>
+      </select>
+      <select name="new_status" class="px-2 py-2 rounded border hidden">
+        {% for s in STATUS_OPTIONS %}
+          <option value="{{ s }}">{{ s }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="px-3 py-2 bg-red-600 text-white rounded">Apply to Selected</button>
+      <span id="selectedCount" class="text-sm text-gray-600">0 selected</span>
+    </div>
+  </form>
+</div>
+
+<div class="mb-4 flex justify-between items-center">
+  <div>
+    <strong>Missing thumbnails:</strong> <span id="missingCount">{{ missing_thumbs|length }}</span>
+    <button id="scanMissingBtn" class="ml-2 px-2 py-1 border rounded">Rescan</button>
+    <button id="showMissingBtn" class="ml-2 px-2 py-1 bg-red-500 text-white rounded">Show Missing</button>
+  </div>
+  <div>
+    <label class="inline-flex items-center"><input type="checkbox" id="recycleDefault" class="mr-2" /> Move media to recycle by default on delete</label>
+  </div>
+</div>
+
+<!-- Results -->
+<div id="results">
+{% if not actresses %}
+  <div class="p-6 bg-white rounded shadow text-center">No results</div>
+{% else %}
+  <!-- List View Only -->
+  <div class="bg-white rounded shadow overflow-x-auto">
+    <table class="min-w-full">
+      <thead class="bg-gray-50 text-left">
+        <tr>
+          <th class="p-3"><input type="checkbox" id="selectAll" class="selectAll" /></th>
+          <th class="p-3">Thumb</th>
+          <th class="p-3">Name</th>
+          <th class="p-3">AKA</th>
+          <th class="p-3">Profession</th>
+          <th class="p-3">Age</th>
+          <th class="p-3">Nationality</th>
+          <th class="p-3">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in actresses %}
+          <tr class="border-t">
+            <td class="p-3"><input type="checkbox" class="selectRow" name="selected_ids" value="{{ a.id }}" /></td>
+            <td class="p-3 w-20">
+              {% if a.folder_name %}
+                <img src="/media/{{ a.folder_name }}/thumbnail.jpg" alt="thumb" class="w-16 h-16 object-cover rounded" onerror="this.style.display='none'"/>
+              {% endif %}
+            </td>
+            <td class="p-3">{{ a.name }}</td>
+            <td class="p-3">{{ a.aka }}</td>
+            <td class="p-3">{{ a.profession }}</td>
+            <td class="p-3">{{ a.age }}</td>
+            <td class="p-3">{{ a.nationality }}</td>
+            <td class="p-3">
+              <a href="/edit/{{ a.id }}" class="px-2 py-1 border rounded">Edit</a>
+              <button class="deleteBtn px-2 py-1 bg-red-500 text-white rounded"
+                      data-id="{{ a.id }}" data-name="{{ a.name|e }}">Delete</button>
+              <a href="/gallery/{{ a.id }}" class="px-2 py-1 border rounded">Gallery</a>
+              <a href="/sync/{{ a.id }}" class="px-2 py-1 bg-blue-500 text-white rounded">Sync Social</a>
+              <button class="previewBtn px-2 py-1 border rounded" 
+                      data-folder="{{ a.folder_name }}" 
+                      data-name="{{ a.name|e }}" 
+                      data-aka="{{ a.aka|e }}" 
+                      data-age="{{ a.age|e }}" 
+                      data-profession="{{ a.profession|e }}" 
+                      data-nationality="{{ a.nationality|e }}" 
+                      data-status="{{ a.status|e }}" 
+                      data-ethnicity="{{ a.ethnicity|e }}" 
+                      data-birthplace="{{ a.birthplace|e }}" 
+                      data-hometown="{{ a.hometown|e }}" 
+                      data-marital_status="{{ a.marital_status|e }}" 
+                      data-children="{{ a.children|e }}" 
+                      data-religion="{{ a.religion|e }}" 
+                      data-tags="{{ a.tags|e }}" 
+                      data-description="{{ a.description|e }}">Preview</button>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endif %}
+</div>
+
+<!-- Pagination -->
+{% if total_pages > 1 %}
+<div class="mt-6 flex justify-center">
+  <nav class="flex space-x-2">
+    {% for p in range(1, total_pages + 1) %}
+      <a href="?{{ request.args.items(multi=True)|rejectattr(0, 'equalto', 'page')|urlencode }}&page={{ p }}" 
+         class="px-3 py-2 border rounded {% if page == p %}bg-indigo-600 text-white{% else %}bg-white{% endif %}">{{ p }}</a>
+    {% endfor %}
+  </nav>
+</div>
+{% endif %}
+
+<!-- Delete modal -->
+<div id="deleteModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-40">
+  <div class="bg-white p-6 rounded shadow max-w-md w-full">
+    <h3 class="text-lg font-semibold">Delete</h3>
+    <p class="mt-2">Are you sure you want to delete <span id="deleteName" class="font-bold"></span>?</p>
+    <div class="mt-4">
+      <label class="inline-flex items-center"><input type="checkbox" id="moveToRecycle" class="mr-2" /> Move media to recycle bin (safe)</label>
+    </div>
+    <div class="mt-4 flex justify-end gap-2">
+      <button onclick="closeDeleteModal()" class="px-3 py-1 border rounded">Cancel</button>
+      <button id="confirmDeleteBtn" class="px-3 py-1 bg-red-600 text-white rounded">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- Preview modal -->
+<div id="previewModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+  <div class="bg-white rounded shadow w-full max-w-6xl mx-4 max-h-[95vh] overflow-y-auto">
+    <div class="p-4">
+      <h3 id="previewTitle" class="text-xl font-semibold mb-4"></h3>
+      <div id="previewContent" class="mb-4"></div>
+      <div class="text-right"><button onclick="closePreview()" class="px-4 py-2 border rounded">Close</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- Missing Modal -->
+<div id="missingModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-40">
+  <div class="bg-white p-6 rounded shadow max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+    <h3 class="text-lg font-semibold mb-4">Missing Thumbnails</h3>
+    <div id="missingList" class="space-y-2"></div>
+    <div class="mt-4 text-right"><button onclick="closeMissingModal()" class="px-4 py-2 border rounded">Close</button></div>
+  </div>
+</div>
+
+<script>
+function escapeHtml(text) {
+  const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+  return text ? text.replace(/[&<>"']/g, m => map[m]) : '';
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+  // Bulk selection
+  const selectAll = document.getElementById('selectAll');
+  const selectRows = document.querySelectorAll('.selectRow');
+  const bulkActions = document.getElementById('bulkActions');
+  const actionSelect = document.querySelector('#bulkActions select[name="action"]');
+  const statusSelect = document.querySelector('#bulkActions select[name="new_status"]');
+  let selectedCount = 0;
+
+  function updateBulk() {
+    selectedCount = document.querySelectorAll('.selectRow:checked').length;
+    document.getElementById('selectedCount').textContent = selectedCount + ' selected';
+    bulkActions.classList.toggle('hidden', selectedCount === 0);
+    statusSelect.classList.toggle('hidden', actionSelect.value !== 'update_status');
+  }
+
+  selectAll?.addEventListener('change', (e) => {
+    selectRows.forEach(cb => cb.checked = e.target.checked);
+    updateBulk();
+  });
+
+  selectRows.forEach(cb => {
+    cb.addEventListener('change', updateBulk);
+  });
+
+  actionSelect?.addEventListener('change', () => {
+    statusSelect.classList.toggle('hidden', actionSelect.value !== 'update_status');
+  });
+
+  // delete buttons
+  document.querySelectorAll('.deleteBtn').forEach(btn=>{
+    btn.addEventListener('click', ()=> {
+      const id = btn.dataset.id;
+      const name = btn.dataset.name || '';
+      openDeleteModal(id, name);
+    });
+  });
+
+  // preview buttons
+  document.querySelectorAll('.previewBtn').forEach(btn=>{
+    btn.addEventListener('click', ()=> {
+      const folder = btn.dataset.folder || '';
+      const name = btn.dataset.name || '';
+      const aka = btn.dataset.aka || '';
+      const age = btn.dataset.age || '';
+      const profession = btn.dataset.profession || '';
+      const nationality = btn.dataset.nationality || '';
+      const status = btn.dataset.status || '';
+      const ethnicity = btn.dataset.ethnicity || '';
+      const birthplace = btn.dataset.birthplace || '';
+      const hometown = btn.dataset.hometown || '';
+      const marital_status = btn.dataset.marital_status || '';
+      const children = btn.dataset.children || '';
+      const religion = btn.dataset.religion || '';
+      const tags = btn.dataset.tags || '';
+      const description = btn.dataset.description || '';
+      openPreview(folder, name, aka, age, profession, nationality, status, ethnicity, birthplace, hometown, marital_status, children, religion, tags, description);
+    });
+  });
+
+  // export json
+  const exportJsonLink = document.getElementById('exportJsonLink');
+  if(exportJsonLink){
+    // Already a direct link
+  }
+
+  // scan / show missing
+  const scanBtn = document.getElementById('scanMissingBtn');
+  if(scanBtn){
+    scanBtn.addEventListener('click', async ()=> {
+      const resp = await fetch('/scan_missing'); const j = await resp.json();
+      document.getElementById('missingCount').textContent = j.missing.length;
+      alert('Scan complete: ' + j.missing.length + ' missing');
+    });
+  }
+  const showBtn = document.getElementById('showMissingBtn');
+  if(showBtn){
+    showBtn.addEventListener('click', async ()=> {
+      const resp = await fetch('/scan_missing'); const j = await resp.json();
+      const list = document.getElementById('missingList'); 
+      list.innerHTML = ''; 
+      if(j.missing.length===0) list.innerHTML = '<div>No missing thumbnails found.</div>'; 
+      else {
+        j.missing.forEach(m=>{ 
+          const el = document.createElement('div'); 
+          el.className='p-2 border rounded flex justify-between items-center'; 
+          el.innerHTML = `<div>${escapeHtml(m.name)} <span class="text-sm text-gray-500">(${m.folder||'no folder'})</span></div><div><a class="px-2 py-1 border rounded" href="/edit/${m.id}">Edit</a></div>`; 
+          list.appendChild(el); 
+        }); 
+      }
+      document.getElementById('missingModal').classList.remove('hidden'); 
+      document.getElementById('missingModal').classList.add('flex'); 
+    });
+  }
+
+  // confirm delete
+  const confirmBtn = document.getElementById('confirmDeleteBtn');
+  if(confirmBtn){
+    confirmBtn.addEventListener('click', async ()=>{
+      if(!window.currentDeleteId) return;
+      const recycle = document.getElementById('moveToRecycle').checked;
+      try{
+        const resp = await fetch('/delete/' + window.currentDeleteId, {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({recycle})
+        });
+        if(!resp.ok) throw new Error('Network response not ok');
+        const j = await resp.json();
+        if(j.ok){ closeDeleteModal(); location.reload(); }
+        else alert('Delete failed');
+      }catch(err){ console.error(err); alert('Delete failed'); }
+    });
+  }
+});
+
+/* modal helpers */
+function openDeleteModal(id, name){
+  window.currentDeleteId = id;
+  document.getElementById('deleteName').textContent = name;
+  document.getElementById('moveToRecycle').checked = document.getElementById('recycleDefault').checked;
+  document.getElementById('deleteModal').classList.remove('hidden'); document.getElementById('deleteModal').classList.add('flex');
+}
+function closeDeleteModal(){ window.currentDeleteId = null; document.getElementById('deleteModal').classList.add('hidden'); document.getElementById('deleteModal').classList.remove('flex'); }
+
+function openPreview(folder, name, aka, age, profession, nationality, status, ethnicity, birthplace, hometown, marital_status, children, religion, tags, description){
+  document.getElementById('previewTitle').textContent = name ? `Preview: ${name}` : 'Preview';
+  const content = document.getElementById('previewContent');
+  let imgHtml = '';
+  if (folder) {
+    imgHtml = `<img src="/media/${escapeHtml(folder)}/thumbnail.jpg" alt="Thumbnail" class="w-full h-64 object-contain rounded md:h-96" onerror="this.style.display='none'"/>`;
+  } else {
+    imgHtml = `<div class="w-full h-64 bg-gray-200 rounded flex items-center justify-center text-gray-500 md:h-96">No Image</div>`;
+  }
+  content.innerHTML = `
+    <div class="flex flex-col lg:flex-row gap-6">
+      <div class="flex-shrink-0 w-full lg:w-1/2">
+        ${imgHtml}
+      </div>
+      <div class="flex-1 w-full lg:w-1/2">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-base">
+          <div><strong>AKA:</strong> ${escapeHtml(aka) || '—'}</div>
+          <div><strong>Age:</strong> ${escapeHtml(age) || '—'}</div>
+          <div><strong>Profession:</strong> ${escapeHtml(profession) || '—'}</div>
+          <div><strong>Nationality:</strong> ${escapeHtml(nationality) || '—'}</div>
+          <div><strong>Status:</strong> ${escapeHtml(status) || '—'}</div>
+          <div><strong>Ethnicity:</strong> ${escapeHtml(ethnicity) || '—'}</div>
+          <div class="md:col-span-2"><strong>Birthplace:</strong> ${escapeHtml(birthplace) || '—'}</div>
+          <div class="md:col-span-2"><strong>Hometown:</strong> ${escapeHtml(hometown) || '—'}</div>
+          <div class="md:col-span-2"><strong>Marital Status:</strong> ${escapeHtml(marital_status) || '—'}, <strong>Children:</strong> ${escapeHtml(children) || '—'}</div>
+          <div class="md:col-span-2"><strong>Religion:</strong> ${escapeHtml(religion) || '—'}</div>
+          <div class="md:col-span-2"><strong>Tags:</strong> ${escapeHtml(tags) || '—'}</div>
+          <div class="md:col-span-2 mt-4"><strong>Description:</strong><p class="text-gray-700 whitespace-pre-wrap mt-2">${escapeHtml(description) || '—'}</p></div>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('previewModal').classList.remove('hidden'); document.getElementById('previewModal').classList.add('flex');
+}
+function closePreview(){ document.getElementById('previewModal').classList.add('hidden'); document.getElementById('previewModal').classList.remove('flex'); }
+
+function closeMissingModal(){ document.getElementById('missingModal').classList.add('hidden'); document.getElementById('missingModal').classList.remove('flex'); }
+</script>
+{% endblock %}

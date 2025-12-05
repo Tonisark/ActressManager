@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modern Actress Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-accent: #f1f5f9;
+            --accent-teal: #0ea5e9;
+            --accent-purple: #8b5cf6;
+            --accent-green: #10b981;
+            --accent-orange: #f97316;
+            --accent-red: #ef4444;
+            --text-primary: #0f172a;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --border-color: #e2e8f0;
+            --radius: 12px;
+        }
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 1.5rem;
+            background: linear-gradient(135deg, var(--bg-primary) 0%, #e2e8f0 100%);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        .dashboard {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: var(--bg-secondary);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-color);
+        }
+        h1 {
+            font-size: 2.25rem;
+            font-weight: 700;
+            margin: 0;
+            background: linear-gradient(135deg, var(--accent-teal), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .user-greeting {
+            font-size: 1.125rem;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .user-greeting i {
+            color: var(--accent-teal);
+        }
+        .bento-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .card {
+            background: var(--bg-secondary);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            box-shadow: var(--shadow-sm);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent-teal), var(--accent-purple));
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+        .card:hover::before {
+            opacity: 1;
+        }
+        .card h3 {
+            margin: 0 0 0.75rem;
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .card p {
+            color: var(--text-muted);
+            margin: 0 0 1rem;
+            font-size: 0.875rem;
+        }
+        .metric {
+            font-size: 2.75rem;
+            font-weight: 700;
+            color: var(--accent-teal);
+            margin: 0.5rem 0;
+            line-height: 1;
+        }
+        .metric-trend {
+            font-size: 0.875rem;
+            color: var(--accent-green);
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+        .metric-trend.negative {
+            color: var(--accent-red);
+        }
+        .chart-container {
+            height: 240px;
+            position: relative;
+            margin-top: 1rem;
+        }
+        .quick-actions {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+        .action-btn {
+            padding: 0.75rem 1.25rem;
+            background: linear-gradient(135deg, var(--accent-teal), #0284c7);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+            font-size: 0.875rem;
+        }
+        .action-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+        .action-btn i {
+            font-size: 0.875rem;
+        }
+        .no-data {
+            text-align: center;
+            color: var(--text-muted);
+            font-style: italic;
+            padding: 2rem;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+        }
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .card {
+            animation: fadeInUp 0.6s ease-out;
+        }
+        @media (max-width: 768px) {
+            body { padding: 1rem; }
+            .bento-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            header {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+                padding: 1rem;
+            }
+            h1 { font-size: 1.75rem; }
+            .metric { font-size: 2.25rem; }
+        }
+        @media (min-width: 1200px) {
+            .bento-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+            .card[style*="grid-row: span 2"] {
+                grid-row: span 2;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <header>
+            <h1><i class="fas fa-chart-line"></i> Actress Database Dashboard</h1>
+            <div class="user-greeting">
+                <i class="fas fa-calendar-alt"></i>
+                Overview – {{ current_date }}
+            </div>
+        </header>
+
+        <div class="bento-grid">
+            <!-- Enhanced Metric Cards -->
+            <div class="card">
+                <h3><i class="fas fa-users"></i> Total Actresses</h3>
+                <div class="metric" id="totalActresses">0</div>
+                <p>Complete database entries</p>
+                <div class="metric-trend">
+                    <i class="fas fa-arrow-up"></i> +{{ (age_data|length * 0.05)|round(0) }} this month
+                </div>
+            </div>
+            <div class="card">
+                <h3><i class="fas fa-folder-open"></i> With Media</h3>
+                <div class="metric" id="withMedia">0</div>
+                <p>Profiles with thumbnails/videos</p>
+                <div class="metric-trend negative">
+                    <i class="fas fa-arrow-down"></i> {{ missing_thumbs|length }} missing
+                </div>
+            </div>
+            <div class="card">
+                <h3><i class="fas fa-clock"></i> Avg Age</h3>
+                <div class="metric" id="avgAge">N/A</div>
+                <p>Calculated across all ages</p>
+                <div class="metric-trend">
+                    <i class="fas fa-chart-bar"></i> Range: 18-{{ (age_data|selectattr('age')|map(attribute='age')|max)|default(100) }} yrs
+                </div>
+            </div>
+            <div class="card">
+                <h3><i class="fas fa-star"></i> Active Profiles</h3>
+                <div class="metric" id="activeCount">0</div>
+                <p>Currently active/inactive split</p>
+                <div class="metric-trend">
+                    <i class="fas fa-percentage"></i> {{ ((status_data|selectattr('status', 'equalto', 'Active')|map(attribute='count')|sum) / (total or 1) * 100)|round(1) }}% active
+                </div>
+            </div>
+
+            <!-- Improved Chart Cards -->
+            <div class="card">
+                <h3><i class="fas fa-birthday-cake"></i> Age Distribution</h3>
+                <div class="chart-container">
+                    <canvas id="ageChart"></canvas>
+                </div>
+                {% if not age_data %}
+                    <p class="no-data">Add ages to see distribution</p>
+                {% else %}
+                    <div class="legend-item">
+                        <span class="legend-color" style="background: #0ea5e9;"></span>
+                        <span>Peak at {{ (age_data|sort(attribute='count', reverse=True)|first).age|default('N/A') }} years</span>
+                    </div>
+                {% endif %}
+            </div>
+            <div class="card" style="grid-row: span 2;">
+                <h3><i class="fas fa-globe"></i> Demographics</h3>
+                <div class="chart-container" style="height: 110px;">
+                    <canvas id="ethChart"></canvas>
+                </div>
+                <div style="padding: 1rem 0; border-top: 1px solid var(--border-color);">
+                    <h4 style="margin: 0 0 0.5rem; font-size: 0.875rem;">Top Ethnicity: {{ (eth_data|sort(attribute='count', reverse=True)|first).ethnicity|default('Unknown') }} ({{ (eth_data|sort(attribute='count', reverse=True)|first).count|default(0) }})</h4>
+                </div>
+                <div class="chart-container" style="height: 110px;">
+                    <canvas id="statusChart"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <h3><i class="fas fa-briefcase"></i> Occupation Breakdown</h3>
+                <div class="chart-container">
+                    <canvas id="occChart"></canvas>
+                </div>
+                {% if not occ_data %}
+                    <p class="no-data">Categorize occupations to visualize</p>
+                {% else %}
+                    <div class="legend-item">
+                        <span class="legend-color" style="background: #10b981;"></span>
+                        <span>Most Common: {{ (occ_data|sort(attribute='count', reverse=True)|first).category|default('N/A') }}</span>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Enhanced Quick Actions -->
+        <div class="card">
+            <h3><i class="fas fa-bolt"></i> Quick Actions</h3>
+            <div class="quick-actions">
+                <a href="{{ url_for('add_actress') }}" class="action-btn" title="Add a new profile">
+                    <i class="fas fa-plus"></i> Add Actress
+                </a>
+                <a href="{{ url_for('import_csv') }}" class="action-btn" title="Bulk import from CSV">
+                    <i class="fas fa-upload"></i> Import CSV
+                </a>
+                <a href="{{ url_for('backup') }}" class="action-btn" title="Create database backup">
+                    <i class="fas fa-download"></i> Backup Now
+                </a>
+                <a href="{{ url_for('scan_missing') }}" class="action-btn" title="Check for missing media">
+                    <i class="fas fa-search"></i> Scan Missing
+                </a>
+                <a href="{{ url_for('index') }}" class="action-btn" style="background: linear-gradient(135deg, var(--accent-purple), #7c3aed);" title="Back to list">
+                    <i class="fas fa-list"></i> View All
+                </a>
+            </div>
+            <p style="text-align: center; margin-top: 1rem; color: var(--text-muted); font-size: 0.875rem;">
+                Last updated: {{ current_date }} | <a href="{{ url_for('backup') }}" style="color: var(--accent-teal);">Run Backup</a>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Parse JSON data from Flask (with fallbacks for accuracy)
+        const ageData = {{ age_data | tojson | safe }};
+        const ethData = {{ eth_data | tojson | safe }};
+        const occData = {{ occ_data | tojson | safe }};
+        const statusData = {{ status_data | tojson | safe }};
+        const total = {{ total | default(0) }};
+        const withMediaCount = {{ with_media | default(0) }};  // Real backend count
+
+        // Accurate Stats Computation
+        const totalActresses = total || ageData.reduce((sum, d) => sum + (d.count || 0), 0);
+        document.getElementById('totalActresses').textContent = totalActresses;
+        
+        document.getElementById('withMedia').textContent = withMediaCount;  // Use real count, not proxy
+
+        const validAges = ageData.filter(d => d.age && !isNaN(d.age)).map(d => ({ age: parseInt(d.age), count: d.count || 0 }));
+        const totalValidAges = validAges.reduce((sum, d) => sum + d.count, 0);
+        const avgAge = totalValidAges > 0 ? (validAges.reduce((sum, d) => sum + (d.age * d.count), 0) / totalValidAges).toFixed(1) : 'N/A';
+        document.getElementById('avgAge').textContent = avgAge;
+
+        const activeStatus = statusData.find(s => s.status === 'Active') || { count: 0 };
+        document.getElementById('activeCount').textContent = activeStatus.count;
+
+        // Enhanced Chart Creation (unchanged)
+        function createChart(ctx, type, labels, data, title, options = {}) {
+            if (!labels.length || !data.length || data.every(d => d === 0)) {
+                ctx.canvas.parentElement.innerHTML = '<p class="no-data">No data available yet</p>';
+                return;
+            }
+            const config = {
+                type: type,
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: title,
+                        data: data,
+                        backgroundColor: type === 'line' ? 'rgba(14, 165, 233, 0.2)' : [
+                            'rgba(14, 165, 233, 0.8)', 'rgba(139, 92, 246, 0.8)', 'rgba(16, 185, 129, 0.8)', 
+                            'rgba(249, 115, 22, 0.8)', 'rgba(239, 68, 68, 0.8)', 'rgba(107, 114, 128, 0.8)'
+                        ].slice(0, labels.length),
+                        borderColor: type === 'line' ? 'rgb(14, 165, 233)' : '#ffffff',
+                        borderWidth: type === 'line' ? 3 : 1,
+                        borderRadius: type === 'bar' ? 4 : 0,
+                        tension: type === 'line' ? 0.4 : undefined
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { intersect: false, mode: 'index' },
+                    plugins: { 
+                        legend: { position: 'bottom', labels: { usePointStyle: true, padding: 20 } },
+                        tooltip: { 
+                            backgroundColor: 'rgba(0,0,0,0.8)',
+                            titleColor: 'white',
+                            bodyColor: 'white',
+                            callbacks: {
+                                label: ctx => `${ctx.label}: ${ctx.parsed.y} profiles`
+                            }
+                        }
+                    },
+                    scales: type === 'line' ? { 
+                        x: { grid: { color: 'rgba(0,0,0,0.05)' } },
+                        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } }
+                    } : {
+                        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } }
+                    },
+                    ...options
+                }
+            };
+            new Chart(ctx, config);
+        }
+
+        // Render Charts (only if data is valid)
+        if (validAges.length > 0) {
+            const ageCtx = document.getElementById('ageChart').getContext('2d');
+            createChart(ageCtx, 'line', validAges.map(d => `Age ${d.age}`), validAges.map(d => d.count), 'Distribution by Age Group');
+        }
+        if (ethData.length > 0) {
+            const ethCtx = document.getElementById('ethChart').getContext('2d');
+            createChart(ethCtx, 'doughnut', ethData.map(d => d.ethnicity), ethData.map(d => d.count), 'Ethnicity', { cutout: '50%' });
+        }
+        if (occData.length > 0) {
+            const occCtx = document.getElementById('occChart').getContext('2d');
+            createChart(occCtx, 'bar', occData.map(d => d.category), occData.map(d => d.count), 'By Occupation');
+        }
+        if (statusData.length > 0) {
+            const statusCtx = document.getElementById('statusChart').getContext('2d');
+            createChart(statusCtx, 'doughnut', statusData.map(d => d.status), statusData.map(d => d.count), 'Status', { cutout: '50%' });
+        }
+
+        // Add subtle animations on load
+        document.querySelectorAll('.card').forEach((card, index) => {
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(20px)';
+            setTimeout(() => {
+                card.style.transition = 'all 0.6s ease-out';
+                card.style.opacity = '1';
+                card.style.transform = 'translateY(0)';
+            }, index * 100);
+        });
+    </script>
+</body>
+</html>

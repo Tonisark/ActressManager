@@ -1,0 +1,54 @@
+# Virtual environment
+venv/
+env/
+.venv/
+
+# Database & data files
+*.db
+*.sqlite
+*.sqlite3
+*.sqbpro
+actresses.db
+2CelebritiesActress.sqbpro
+Entertainers_Data.csv
+
+# Backup folder
+backups/
+backup/
+
+# MEDIA FOLDER — NEVER COMMIT (this is your photos/videos)
+media/
+# Keep the empty folder when someone clones (recommended)
+!media/.gitkeep
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyc
+*.pyo
+*.pyd
+
+# Flask
+instance/
+.flask_session/
+
+# Logs
+*.log
+logs/
+
+# IDE / Editor files
+.idea/
+.vscode/
+*.sublime-workspace
+*.sublime-project
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Jupyter
+.ipynb_checkpoints/
